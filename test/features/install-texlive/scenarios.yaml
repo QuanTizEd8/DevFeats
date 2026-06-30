@@ -5,7 +5,7 @@ defaults:
 # ── method=script scenarios ───────────────────────────────────────────────────
 
 default:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   modes: [devcontainer, standalone]
   options:
     scheme: infraonly
@@ -13,7 +13,7 @@ default:
   tests: [tlmgr_on_path]
 
 script_custom_prefix:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   modes: [devcontainer, standalone]
   options:
     scheme: infraonly
@@ -22,7 +22,7 @@ script_custom_prefix:
   tests: [script_custom_prefix]
 
 script_no_adjustpath:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   modes: [standalone]
   options:
     scheme: infraonly
@@ -31,7 +31,7 @@ script_no_adjustpath:
   tests: [script_no_adjustpath]
 
 script_collections:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   modes: [standalone]
   options:
     scheme: full       # ignored when collections is set
@@ -40,7 +40,7 @@ script_collections:
   tests: [script_collections]
 
 script_inline_profile:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   modes: [standalone]
   options:
     profile: |
@@ -53,7 +53,7 @@ script_inline_profile:
   tests: [tlmgr_on_path]
 
 if_exists_skip:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   modes: [standalone]
   setup: |
     # Pre-install a minimal TeX Live via package manager as the "existing" install
@@ -66,7 +66,7 @@ if_exists_skip:
 
 if_exists_fail:
   expect_install_failure: true
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   modes: [standalone]
   setup: |
     apt-get install -y --no-install-recommends texlive-latex-base 2>/dev/null || true
@@ -81,7 +81,7 @@ if_exists_fail:
 # ── method=package scenarios ──────────────────────────────────────────────────
 
 package_default:
-  envs: [ubuntu-24.04, debian-12+bash, alpine-3.21+bash]
+  envs: [ubuntu-stable, debian-stable+bash, alpine-current+bash]
   modes: [devcontainer, standalone]
   options:
     method: package

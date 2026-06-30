@@ -6,25 +6,25 @@ defaults:
 # ── baseline ─────────────────────────────────────────────────────────────────
 
 default:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   tests: [default]
 
 # ── new options ───────────────────────────────────────────────────────────────
 
 copilot_home:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   options:
     copilot_home: ~/copilot-test
   tests: [copilot_home]
 
 copilot_model:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   options:
     copilot_model: claude-sonnet-4-6
   tests: [copilot_model]
 
 plugins:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   options:
     plugins: workiq@copilot-plugins
   tests: [plugins]

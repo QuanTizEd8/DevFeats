@@ -54,13 +54,13 @@ test/
 # Library unit tests (no Docker, fast)
 just test-lib                         # all modules
 just test-lib-mod <module>            # e.g. just test-lib-mod ospkg
-just test-lib-env <env>               # in one container env, e.g. just test-lib-env alpine-3.21
+just test-lib-env <env>               # in one container env, e.g. just test-lib-env alpine-current
 just test-lib-envs                    # all container environments (requires Docker)
 
 # Install framework tests (requires synced src/)
 just test-install
 just test-install-mod <module>        # e.g. just test-install-mod dep_install
-just test-install-env <env>           # e.g. just test-install-env ubuntu-24.04
+just test-install-env <env>           # e.g. just test-install-env ubuntu-stable
 
 # Feature scenario tests (requires Docker)
 just test-feats <feature>             # all modes for one feature

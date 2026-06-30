@@ -1,35 +1,38 @@
 # ── base images ──────────────────────────────────────────────────────────────
-# Pinned to specific minor versions. No build steps.
-# Update these when a new major/minor release becomes the recommended default.
+# Environment keys use semantic tracks (stable/current), not version numbers.
+# Image pins live in image: fields only — bump pins here without renaming keys.
+#
+#   stable  — primary LTS baseline (Ubuntu, Debian dual-track only)
+#   current — version tracked in CI (all single-track families; newer dual-track slot)
 
-ubuntu-24.04:
+ubuntu-stable:
   image: ubuntu:24.04
 
-ubuntu-26.04:
+ubuntu-current:
   image: ubuntu:26.04
 
-debian-12:
+debian-stable:
   image: debian:12
 
-debian-13:
+debian-current:
   image: debian:13
 
-alpine-3.21:
+alpine-current:
   image: alpine:3.21
 
-fedora-42:
+fedora-current:
   image: fedora:42
 
-rockylinux-9:
   image: rockylinux:9
+rockylinux-current:
 
-opensuse-leap-15.6:
+opensuse-leap-current:
   image: opensuse/leap:15.6
 
-archlinux:
+archlinux-current:
   image: archlinux:base-20260621.0.546891
 
-condaforge-miniforge3:
+miniforge-current:
   image: condaforge/miniforge3:26.3.2-3
 
 # ── +bash variants ────────────────────────────────────────────────────────────
@@ -38,18 +41,18 @@ condaforge-miniforge3:
 # needs bash. Ubuntu, Debian, Fedora, and Arch Linux ship bash by default; no
 # +bash needed for those. (archlinux:base includes bash via the base package group.)
 
-alpine-3.21+bash:
-  from: alpine-3.21
+alpine-current+bash:
+  from: alpine-current
   build:
     dockerfile: apk add --no-cache bash
 
-rockylinux-9+bash:
-  from: rockylinux-9
+rockylinux-current+bash:
+  from: rockylinux-current
   build:
     dockerfile: dnf install -y bash
 
-opensuse-leap-15.6+bash:
-  from: opensuse-leap-15.6
+opensuse-leap-current+bash:
+  from: opensuse-leap-current
   build:
     # zypper exits 106 (ZYPPER_EXIT_INF_REPOS_SKIPPED) when some repos are
     # unreachable but the operation succeeds. set +e is required because
@@ -61,34 +64,34 @@ opensuse-leap-15.6+bash:
       set -e
       [ "$_rc" -eq 0 ] || [ "$_rc" -eq 106 ]
 
-fedora-42+bash:
-  from: fedora-42
+fedora-current+bash:
+  from: fedora-current
   build:
     dockerfile: dnf install -y bash
 
-debian-12+bash:
-  from: debian-12
+debian-stable+bash:
+  from: debian-stable
   build:
     dockerfile: apt-get update -qq && apt-get install -y --no-install-recommends bash && rm -rf /var/lib/apt/lists/*
 
-debian-13+bash:
-  from: debian-13
+debian-current+bash:
+  from: debian-current
   build:
     dockerfile: apt-get update -qq && apt-get install -y --no-install-recommends bash && rm -rf /var/lib/apt/lists/*
 
 # ── +shell variants ───────────────────────────────────────────────────────────
 # Base images augmented with a single non-bash shell or helper tool.
 
-ubuntu-24.04+fish:
-  from: ubuntu-24.04
+ubuntu-stable+fish:
+  from: ubuntu-stable
   build:
     dockerfile: |
       apt-get update
       apt-get install -y --no-install-recommends fish
       rm -rf /var/lib/apt/lists/*
 
-ubuntu-24.04+zsh:
-  from: ubuntu-24.04
+ubuntu-stable+zsh:
+  from: ubuntu-stable
   build:
     dockerfile: |
       apt-get update \
@@ -96,16 +99,16 @@ ubuntu-24.04+zsh:
        && apt-get clean \
        && apt-get dist-clean 2>/dev/null || rm -rf /var/lib/apt/lists/*
 
-ubuntu-24.04+node:
-  from: ubuntu-24.04
+ubuntu-stable+node:
+  from: ubuntu-stable
   build:
     dockerfile: |
       apt-get update
       apt-get install -y --no-install-recommends nodejs npm
       rm -rf /var/lib/apt/lists/*
 
-ubuntu-24.04+curl:
-  from: ubuntu-24.04
+ubuntu-stable+curl:
+  from: ubuntu-stable
   build:
     dockerfile: |
       apt-get update
@@ -117,29 +120,29 @@ ubuntu-24.04+curl:
 # Versioned variants ({base}+{tool}-{version}) are used for if_exists testing
 # and for providing a known pre-installed state.
 
-ubuntu-24.04+git:
-  from: ubuntu-24.04
+ubuntu-stable+git:
+  from: ubuntu-stable
   build:
     dockerfile: apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
 
-ubuntu-24.04+git+sudo:
-  from: ubuntu-24.04
+ubuntu-stable+git+sudo:
+  from: ubuntu-stable
   build:
     dockerfile: |
       (apt-get update || (sleep 15 && apt-get update))
       apt-get install -y --no-install-recommends git sudo
       rm -rf /var/lib/apt/lists/*
 
-ubuntu-24.04+ripgrep:
-  from: ubuntu-24.04
+ubuntu-stable+ripgrep:
+  from: ubuntu-stable
   build:
     dockerfile: |
       apt-get update -qq
       apt-get install -y --no-install-recommends ripgrep
       rm -rf /var/lib/apt/lists/*
 
-ubuntu-26.04+rust:
-  from: ubuntu-26.04
+ubuntu-current+rust:
+  from: ubuntu-current
   build:
     dockerfile: |
       apt-get update -qq
@@ -147,8 +150,8 @@ ubuntu-26.04+rust:
         cargo rustc gcc g++ make pkg-config
       rm -rf /var/lib/apt/lists/*
 
-ubuntu-24.04+jq-1.8.1:
-  from: ubuntu-24.04
+ubuntu-stable+jq-1.8.1:
+  from: ubuntu-stable
   build:
     dockerfile: |
       apt-get update -qq
@@ -167,8 +170,8 @@ ubuntu-24.04+jq-1.8.1:
         -o /usr/local/bin/jq
       chmod +x /usr/local/bin/jq
 
-ubuntu-24.04+yq-4.44.2:
-  from: ubuntu-24.04
+ubuntu-stable+yq-4.44.2:
+  from: ubuntu-stable
   build:
     dockerfile: |
       apt-get update
@@ -187,8 +190,8 @@ ubuntu-24.04+yq-4.44.2:
         -o /usr/local/bin/yq
       chmod +x /usr/local/bin/yq
 
-ubuntu-24.04+gh-2.67.0:
-  from: ubuntu-24.04
+ubuntu-stable+gh-2.67.0:
+  from: ubuntu-stable
   build:
     dockerfile: |
       (apt-get update || (sleep 15 && apt-get update))
@@ -209,8 +212,8 @@ ubuntu-24.04+gh-2.67.0:
       install -m 755 "/tmp/gh_${GH_VERSION}_linux_${ASSET_ARCH}/bin/gh" /usr/local/bin/gh
       rm /tmp/gh.tar.gz
 
-ubuntu-24.04+homebrew:
-  from: ubuntu-24.04
+ubuntu-stable+homebrew:
+  from: ubuntu-stable
   build:
     dockerfile: |
       apt-get update \
@@ -222,13 +225,13 @@ ubuntu-24.04+homebrew:
       runuser -u linuxbrew -- env NONINTERACTIVE=1 /bin/bash -c \
           "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-debian-13+just:
-  from: debian-13
+debian-current+just:
+  from: debian-current
   build:
     dockerfile: apt-get update -qq && apt-get install -y --no-install-recommends just && rm -rf /var/lib/apt/lists/*
 
-debian-12+direnv:
-  from: debian-12
+debian-stable+direnv:
+  from: debian-stable
   build:
     dockerfile: |
       apt-get update -qq
@@ -239,8 +242,8 @@ debian-12+direnv:
 # Base images with build toolchains installed (compilers, build systems, dev headers).
 # Named by what is installed, not by which feature uses it, to encourage reuse.
 
-debian-12+autotools:
-  from: debian-12
+debian-stable+autotools:
+  from: debian-stable
   build:
     dockerfile: |
       apt-get update -qq
@@ -248,15 +251,15 @@ debian-12+autotools:
         make automake autoconf libtool build-essential curl ca-certificates
       rm -rf /var/lib/apt/lists/*
 
-alpine-3.21+build-base+ncurses:
-  from: alpine-3.21
+alpine-current+build-base+ncurses:
+  from: alpine-current
   build:
     # build-base + ncurses-dev: required for source builds of bash, zsh, and
     # other tools that use autotools + ncurses.
     dockerfile: apk add --no-cache build-base ncurses-dev curl ca-certificates
 
-debian-12+build-essential+ncurses:
-  from: debian-12
+debian-stable+build-essential+ncurses:
+  from: debian-stable
   build:
     dockerfile: |
       apt-get update -qq
@@ -264,8 +267,8 @@ debian-12+build-essential+ncurses:
         build-essential libncurses-dev curl ca-certificates xz-utils
       rm -rf /var/lib/apt/lists/*
 
-ubuntu-24.04+build-essential+git-dev-libs:
-  from: ubuntu-24.04
+ubuntu-stable+build-essential+git-dev-libs:
+  from: ubuntu-stable
   build:
     # build-essential + git's specific C library requirements (libcurl, libexpat,
     # libpcre2, libssl, zlib) needed for compiling git from a kernel.org tarball.
@@ -277,8 +280,8 @@ ubuntu-24.04+build-essential+git-dev-libs:
         curl ca-certificates tar jq yq
       rm -rf /var/lib/apt/lists/*
 
-debian-12+go:
-  from: debian-12
+debian-stable+go:
+  from: debian-stable
   build:
     dockerfile: |
       apt-get update -qq
@@ -302,20 +305,20 @@ debian-12+go:
 # for user setup avoids repeating useradd lines across many scenario setup: blocks
 # and eliminates the need for rolling-tag devcontainers-base images.
 #
-# ubuntu:24.04 ships with an 'ubuntu' user at UID 1000. All ubuntu-24.04+*+vscode
+# ubuntu:24.04 ships with an 'ubuntu' user at UID 1000. All ubuntu-stable+*+vscode
 # environments delete that user first so that vscode occupies UID 1000 consistently.
 # This avoids UID collisions when scenarios create additional users (e.g. testuser at
 # UID 1001) in their setup blocks, and prevents `useradd -u 1000 vscode` from failing.
 
-ubuntu-24.04+vscode:
-  from: ubuntu-24.04
+ubuntu-stable+vscode:
+  from: ubuntu-stable
   build:
     dockerfile: |
       userdel ubuntu
       useradd -m -s /bin/bash -u 1000 vscode
 
-ubuntu-24.04+git+sudo+vscode:
-  from: ubuntu-24.04+git+sudo
+ubuntu-stable+git+sudo+vscode:
+  from: ubuntu-stable+git+sudo
   build:
     dockerfile: |
       userdel ubuntu
@@ -323,23 +326,23 @@ ubuntu-24.04+git+sudo+vscode:
       echo "vscode ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/vscode
       chmod 440 /etc/sudoers.d/vscode
 
-debian-12+vscode:
-  from: debian-12
+debian-stable+vscode:
+  from: debian-stable
   build:
     dockerfile: useradd -m -s /bin/bash -u 1000 vscode
 
-alpine-3.21+build-base+ncurses+vscode:
-  from: alpine-3.21+build-base+ncurses
+alpine-current+build-base+ncurses+vscode:
+  from: alpine-current+build-base+ncurses
   build:
     dockerfile: adduser -D -s /bin/sh -u 1000 vscode
 
-debian-12+build-essential+ncurses+vscode:
-  from: debian-12+build-essential+ncurses
+debian-stable+build-essential+ncurses+vscode:
+  from: debian-stable+build-essential+ncurses
   build:
     dockerfile: useradd -m -s /bin/bash -u 1000 vscode
 
-ubuntu-24.04+build-essential+git-dev-libs+vscode:
-  from: ubuntu-24.04+build-essential+git-dev-libs
+ubuntu-stable+build-essential+git-dev-libs+vscode:
+  from: ubuntu-stable+build-essential+git-dev-libs
   build:
     dockerfile: |
       userdel ubuntu
@@ -348,8 +351,8 @@ ubuntu-24.04+build-essential+git-dev-libs+vscode:
 # ── from:-chain variants ──────────────────────────────────────────────────────
 # Environments derived from other environments via the `from:` key.
 
-ubuntu-24.04+miniforge:
-  from: ubuntu-24.04+curl
+ubuntu-stable+miniforge:
+  from: ubuntu-stable+curl
   build:
     dockerfile: |
       ARCH="$(uname -m)"
@@ -362,8 +365,8 @@ ubuntu-24.04+miniforge:
   env_vars:
     PATH: /opt/conda/bin:${PATH}
 
-ubuntu-24.04+pixi:
-  from: ubuntu-24.04+curl
+ubuntu-stable+pixi:
+  from: ubuntu-stable+curl
   build:
     dockerfile: |
       ARCH="$(uname -m)"
@@ -381,19 +384,19 @@ ubuntu-24.04+pixi:
 # ── macOS environments ────────────────────────────────────────────────────────
 # image matches ^macos — no Docker container is used, runs on GHA macOS runners.
 #
-# macos-15: Bare macOS Sequoia — closest analog to a minimal Linux base image.
+# macos-current: Bare macOS Sequoia — closest analog to a minimal Linux base image.
 #   Homebrew is uninstalled via the official uninstaller, and user-level config
 #   files are cleaned, so tests cannot rely on pre-installed state.
 #   clean_path: strips the GHA runner's pre-installed PATH to the macOS system
 #   baseline (/usr/bin:/bin:/usr/sbin:/sbin).
 #   On native macOS, build.dockerfile is a shell bootstrap (see run.py), not Docker.
 #
-# macos-15+brew: macOS Sequoia with Homebrew available — matches the GHA runner's
+# macos-current+brew: macOS Sequoia with Homebrew available — matches the GHA runner's
 #   default state. Homebrew lives outside the stripped PATH; scenarios and setup
 #   scripts invoke `brew --prefix` and resolve the real binary
 #   (arm64: /opt/homebrew, Intel: /usr/local).
 
-macos-15:
+macos-current:
   image: macos-15
   clean_path: true
   build:
@@ -441,7 +444,7 @@ macos-15:
         "${HOME}/.pypirc" \
         "${HOME}/.condarc"
 
-macos-15+brew:
+macos-current+brew:
   image: macos-15
   clean_path: true
   # Homebrew lives outside the stripped PATH; scenarios and setup scripts invoke

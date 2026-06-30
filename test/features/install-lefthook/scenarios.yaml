@@ -1,6 +1,6 @@
 default:
   envs:
-  - ubuntu-24.04
+  - ubuntu-stable
   modes:
   - devcontainer
   - standalone
@@ -9,7 +9,7 @@ default:
 
 binary_custom_prefix:
   envs:
-  - ubuntu-24.04
+  - ubuntu-stable
   modes:
   - devcontainer
   - standalone
@@ -23,7 +23,7 @@ binary_custom_prefix:
 if_exists_fail:
   expect_install_failure: true
   envs:
-  - ubuntu-24.04
+  - ubuntu-stable
   modes:
   - standalone
   setup: |
@@ -39,7 +39,7 @@ if_exists_fail:
 
 installer_dir:
   envs:
-  - ubuntu-24.04
+  - ubuntu-stable
   modes:
   - devcontainer
   - standalone
@@ -51,7 +51,7 @@ installer_dir:
 
 specific_version:
   envs:
-  - ubuntu-24.04
+  - ubuntu-stable
   modes:
   - devcontainer
   - standalone
@@ -63,7 +63,7 @@ specific_version:
 
 method_npm:
   envs:
-  - ubuntu-24.04+node
+  - ubuntu-stable+node
   modes:
   - devcontainer
   - standalone
@@ -75,8 +75,8 @@ method_npm:
 
 upstream_package_default:
   envs:
-  - ubuntu-24.04
-  - alpine-3.21
+  - ubuntu-stable
+  - alpine-current
   modes:
   - devcontainer
   - standalone

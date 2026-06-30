@@ -1,6 +1,6 @@
 default:
   envs:
-  - ubuntu-24.04
+  - ubuntu-stable
   modes:
   - devcontainer
   - standalone
@@ -8,7 +8,7 @@ default:
   - default
 binary_custom_prefix:
   envs:
-  - ubuntu-24.04
+  - ubuntu-stable
   modes:
   - devcontainer
   - standalone
@@ -20,7 +20,7 @@ binary_custom_prefix:
   - binary_custom_prefix
 package_default:
   envs:
-  - debian-13
+  - debian-current
   modes:
   - devcontainer
   - standalone
@@ -32,7 +32,7 @@ package_default:
 if_exists_fail:
   expect_install_failure: true
   envs:
-  - debian-13+just
+  - debian-current+just
   modes:
   - standalone
   tests:
@@ -43,7 +43,7 @@ if_exists_fail:
     if_exists: fail
 installer_dir:
   envs:
-  - ubuntu-24.04
+  - ubuntu-stable
   modes:
   - devcontainer
   - standalone

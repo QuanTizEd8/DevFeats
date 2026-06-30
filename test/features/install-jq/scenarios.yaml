@@ -1,10 +1,10 @@
 default:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   modes: [devcontainer, standalone]
   tests: [default]
 
 binary_pinned_version:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   modes: [devcontainer, standalone]
   options:
     version: "1.8.1"
@@ -12,7 +12,7 @@ binary_pinned_version:
   tests: [binary_pinned_version]
 
 legacy_version:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   modes: [devcontainer, standalone]
   options:
     version: "1.6"
@@ -20,7 +20,7 @@ legacy_version:
   tests: [legacy_version]
 
 binary_custom_prefix:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   modes: [devcontainer, standalone]
   options:
     method: binary
@@ -30,7 +30,7 @@ binary_custom_prefix:
   tests: [binary_custom_prefix]
 
 custom_prefix_no_symlink:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   modes: [devcontainer, standalone]
   options:
     method: binary
@@ -39,7 +39,7 @@ custom_prefix_no_symlink:
   tests: [custom_prefix_no_symlink]
 
 package_default:
-  envs: [debian-12+bash, alpine-3.21+bash, fedora-42+bash]
+  envs: [debian-stable+bash, alpine-current+bash, fedora-current+bash]
   modes: [devcontainer, standalone]
   options:
     method: package
@@ -47,7 +47,7 @@ package_default:
 
 version_match_idempotency:
   expect_install_failure: true
-  envs: [ubuntu-24.04+jq-1.8.1]
+  envs: [ubuntu-stable+jq-1.8.1]
   modes: [standalone]
   options:
     version: "1.8.1"
@@ -55,7 +55,7 @@ version_match_idempotency:
   tests: [version_match_idempotency]
 
 reinstall:
-  envs: [ubuntu-24.04+jq-1.8.1]
+  envs: [ubuntu-stable+jq-1.8.1]
   modes: [devcontainer, standalone]
   options:
     version: "1.7.1"
@@ -65,7 +65,7 @@ reinstall:
 
 if_exists_fail:
   expect_install_failure: true
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [standalone]
   setup: |
     printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then echo "jq-9.9.9 (fake)"; exit 0; fi\nexit 0' > /usr/local/bin/jq
@@ -78,7 +78,7 @@ if_exists_fail:
     skip_install: false
 
 if_exists_skip:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [standalone]
   setup: |
     printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then echo "jq-9.9.9 (fake)"; exit 0; fi\nexit 0' > /usr/local/bin/jq
@@ -89,7 +89,7 @@ if_exists_skip:
   tests: [if_exists_skip]
 
 source_default:
-  envs: [debian-12+autotools]
+  envs: [debian-stable+autotools]
   modes: [standalone]
   options:
     method: source
@@ -97,7 +97,7 @@ source_default:
   tests: [source_default]
 
 package_manifest_override:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   modes: [standalone]
   options:
     method: package

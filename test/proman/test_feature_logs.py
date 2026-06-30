@@ -37,9 +37,9 @@ def test_uses_bind_mount_log() -> None:
 
 def test_copy_log_to_bind_mount_fragment_uses_run_basename() -> None:
     """Copy fragment targets /log-out/<feature>--<key>--<mode>.log."""
-    run = FeatureTestRun("install-direnv", "default.ubuntu-24.04", "standalone")
+    run = FeatureTestRun("install-direnv", "default.ubuntu-stable", "standalone")
     fragment = copy_log_to_bind_mount_fragment(run, log_path="/tmp/x.log")
-    assert "/log-out/install-direnv--default.ubuntu-24.04--linux.log" in fragment
+    assert "/log-out/install-direnv--default.ubuntu-stable--linux.log" in fragment
 
 
 def test_devcontainer_log_bind_mount_spec_uses_env_var() -> None:
@@ -56,7 +56,7 @@ def test_patch_devcontainer_scenario_logging_default_log_file(
     path.write_text(
         json.dumps(
             {
-                "default_install.ubuntu-24.04": {
+                "default_install.ubuntu-stable": {
                     "build": {"dockerfile": "default_install.Dockerfile"},
                     "features": {"install-git": {"version": "stable"}},
                 },
@@ -67,12 +67,12 @@ def test_patch_devcontainer_scenario_logging_default_log_file(
     )
     effective = patch_devcontainer_scenario_logging(
         path,
-        scenario_key="default_install.ubuntu-24.04",
+        scenario_key="default_install.ubuntu-stable",
         options={},
     )
     assert effective == "/tmp/devfeats-feature.log"
     data = json.loads(path.read_text(encoding="utf-8"))
-    sc = data["default_install.ubuntu-24.04"]
+    sc = data["default_install.ubuntu-stable"]
     assert devcontainer_log_bind_mount_spec() in sc["mounts"]
     assert "log_file" not in sc["features"]["install-git"]
 
@@ -85,7 +85,7 @@ def test_patch_devcontainer_scenario_logging_custom_log_file(
     path.write_text(
         json.dumps(
             {
-                "log_file.ubuntu-24.04": {
+                "log_file.ubuntu-stable": {
                     "build": {"dockerfile": "log_file.Dockerfile"},
                     "features": {"install-git": {"log_file": "/tmp/git.log"}},
                 },
@@ -96,15 +96,15 @@ def test_patch_devcontainer_scenario_logging_custom_log_file(
     )
     effective = patch_devcontainer_scenario_logging(
         path,
-        scenario_key="log_file.ubuntu-24.04",
+        scenario_key="log_file.ubuntu-stable",
         options={"log_file": "/tmp/git.log"},
     )
     assert effective == "/tmp/git.log"
     data = json.loads(path.read_text(encoding="utf-8"))
-    assert data["log_file.ubuntu-24.04"]["features"]["install-git"]["log_file"] == (
+    assert data["log_file.ubuntu-stable"]["features"]["install-git"]["log_file"] == (
         "/tmp/git.log"
     )
-    assert devcontainer_log_bind_mount_spec() in data["log_file.ubuntu-24.04"]["mounts"]
+    assert devcontainer_log_bind_mount_spec() in data["log_file.ubuntu-stable"]["mounts"]
 
 
 def test_append_bind_mount_copy_to_test_script(tmp_path: Path) -> None:
@@ -118,7 +118,7 @@ def test_append_bind_mount_copy_to_test_script(tmp_path: Path) -> None:
         "reportResults\n",
         encoding="utf-8",
     )
-    run = FeatureTestRun("install-conda-env", "log_file.ubuntu-24.04", "devcontainer")
+    run = FeatureTestRun("install-conda-env", "log_file.ubuntu-stable", "devcontainer")
     append_bind_mount_copy_to_test_script(
         script,
         run,
@@ -126,7 +126,7 @@ def test_append_bind_mount_copy_to_test_script(tmp_path: Path) -> None:
     )
     text = script.read_text(encoding="utf-8")
     assert "/tmp/conda-env.log" in text
-    assert "/log-out/install-conda-env--log_file.ubuntu-24.04--devcontainer.log" in text
+    assert "/log-out/install-conda-env--log_file.ubuntu-stable--devcontainer.log" in text
     assert text.index("/log-out/") < text.rindex("reportResults")
 
 
@@ -140,7 +140,7 @@ def test_append_bind_mount_copy_skips_heredoc_report_results_comment(
         f"#!/bin/bash\ncat > /tmp/lib <<'END'\n{lib_line}END\nreportResults\n",
         encoding="utf-8",
     )
-    run = FeatureTestRun("install-git", "log_file.ubuntu-24.04", "devcontainer")
+    run = FeatureTestRun("install-git", "log_file.ubuntu-stable", "devcontainer")
     append_bind_mount_copy_to_test_script(
         script,
         run,

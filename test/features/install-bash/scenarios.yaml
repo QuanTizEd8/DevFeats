@@ -1,17 +1,17 @@
 default:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer, standalone]
   tests: [default]
 
 package_default:
-  envs: [alpine-3.21]
+  envs: [alpine-current]
   modes: [devcontainer, standalone]
   options:
     method: package
   tests: [package_default]
 
 source_default:
-  envs: [alpine-3.21+build-base+ncurses]
+  envs: [alpine-current+build-base+ncurses]
   modes: [standalone]
   options:
     method: source
@@ -19,7 +19,7 @@ source_default:
   tests: [source_default]
 
 source_pinned_version:
-  envs: [alpine-3.21+build-base+ncurses]
+  envs: [alpine-current+build-base+ncurses]
   modes: [standalone]
   options:
     method: source
@@ -27,7 +27,7 @@ source_pinned_version:
   tests: [source_pinned_version]
 
 source_custom_prefix:
-  envs: [alpine-3.21+build-base+ncurses]
+  envs: [alpine-current+build-base+ncurses]
   modes: [devcontainer, standalone]
   options:
     method: source
@@ -37,7 +37,7 @@ source_custom_prefix:
   tests: [source_custom_prefix]
 
 source_nonroot:
-  envs: [alpine-3.21+build-base+ncurses+vscode]
+  envs: [alpine-current+build-base+ncurses+vscode]
   modes: [standalone]
   options:
     method: source
@@ -47,7 +47,7 @@ source_nonroot:
   tests: [source_nonroot]
 
 bootstrap_pm_collision:
-  envs: [alpine-3.21]
+  envs: [alpine-current]
   modes: [standalone]
   options:
     method: package
@@ -55,7 +55,7 @@ bootstrap_pm_collision:
 
 if_exists_fail:
   expect_install_failure: true
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [standalone]
   options:
     method: auto
@@ -63,7 +63,7 @@ if_exists_fail:
   tests: [if_exists_fail]
 
 if_exists_skip:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [standalone]
   setup: |
     printf '#!/bin/sh\nif [ "${1-}" = "--version" ]; then printf "GNU bash, version 9.9.9 (fake)\\n"; exit 0; fi\nexit 0' > /usr/local/bin/bash
@@ -75,7 +75,7 @@ if_exists_skip:
 
 invalid_method:
   expect_install_failure: true
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [standalone]
   options:
     method: binary

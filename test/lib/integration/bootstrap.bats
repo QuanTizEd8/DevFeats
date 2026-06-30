@@ -6,8 +6,8 @@
 # for ALL bootstrap functions: tool absent → package manager installs it →
 # command -v succeeds.
 #
-# The bare integration environments (ubuntu-24.04+git, alpine-3.21+bash,
-# fedora-42+bash) ship only bash (and git for ubuntu), so most tools are
+# The bare integration environments (ubuntu-stable+git, alpine-current+bash,
+# fedora-current+bash) ship only bash (and git for ubuntu), so most tools are
 # absent and will be installed by the bootstrap functions under test.
 
 bats_require_minimum_version 1.5.0

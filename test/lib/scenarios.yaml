@@ -1,20 +1,20 @@
-ubuntu-24.04:
-  env: ubuntu-24.04
+ubuntu-stable:
+  env: ubuntu-stable
 
-debian-12:
-  env: debian-12+bash
+debian-stable:
+  env: debian-stable+bash
 
-fedora-42:
-  env: fedora-42+bash
+fedora-current:
+  env: fedora-current+bash
 
-rockylinux-9:
-  env: rockylinux-9+bash
+rockylinux-current:
+  env: rockylinux-current+bash
 
-alpine-3.21:
-  env: alpine-3.21+bash
+alpine-current:
+  env: alpine-current+bash
 
-opensuse-leap-15.6:
-  env: opensuse-leap-15.6+bash
+opensuse-leap-current:
+  env: opensuse-leap-current+bash
 
-archlinux:
-  env: archlinux
+archlinux-current:
+  env: archlinux-current

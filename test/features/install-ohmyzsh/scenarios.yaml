@@ -1,52 +1,52 @@
 default:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer]
   tests: [default]
 
 plugins:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer]
   options:
     plugins: "zsh-users/zsh-autosuggestions\nzsh-users/zsh-syntax-highlighting"
   tests: [plugins]
 
 theme_p10k:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer]
   options:
     theme: romkatv/powerlevel10k
   tests: [theme_p10k]
 
 binary_custom_prefix:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer]
   options:
     prefix: /opt/oh-my-zsh
   tests: [binary_custom_prefix]
 
 custom_dir_system:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer]
   options:
     custom_dir: /opt/zsh-custom
   tests: [custom_dir_system]
 
 custom_dir_per_user:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer]
   options:
     custom_dir: "~/.zsh-custom"
   tests: [custom_dir_per_user]
 
 if_exists_skip:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer]
   options:
     if_exists: skip
   tests: [if_exists_skip]
 
 if_exists_update:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer]
   options:
     if_exists: update

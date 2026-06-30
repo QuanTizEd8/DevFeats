@@ -1,38 +1,38 @@
 default:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer]
   tests: [default]
 
 completions_zsh_only:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer]
   options:
     shells: zsh
   tests: [completions_zsh_only]
 
 completions_bash_only:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer]
   options:
     shells: bash
   tests: [completions_bash_only]
 
 no_completions:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer]
   options:
     shells: ""
   tests: [no_completions]
 
 completions_all:
-  envs: [ubuntu-24.04+fish]
+  envs: [ubuntu-stable+fish]
   modes: [devcontainer]
   options:
     shells: "bash\nzsh\nfish"
   tests: [completions_all]
 
 binary_pinned_version:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   modes: [devcontainer, standalone]
   options:
     version: "1.25.1"
@@ -40,7 +40,7 @@ binary_pinned_version:
   tests: [binary_pinned_version]
 
 binary_custom_prefix:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   modes: [devcontainer, standalone]
   options:
     method: binary
@@ -50,7 +50,7 @@ binary_custom_prefix:
   tests: [binary_custom_prefix]
 
 custom_prefix_no_symlink:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   modes: [devcontainer, standalone]
   options:
     method: binary
@@ -60,9 +60,9 @@ custom_prefix_no_symlink:
 
 package_default:
   envs:
-    - alpine-3.21+bash
-    - archlinux
-    - opensuse-leap-15.6+bash
+    - alpine-current+bash
+    - archlinux-current
+    - opensuse-leap-current+bash
   modes: [devcontainer, standalone]
   options:
     method: package
@@ -70,7 +70,7 @@ package_default:
 
 if_exists_fail:
   expect_install_failure: true
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [standalone]
   setup: |
     printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then echo "1.99.0"; exit 0; fi\nexit 0' \
@@ -84,7 +84,7 @@ if_exists_fail:
     skip_install: false
 
 if_exists_skip:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [standalone]
   setup: |
     printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then echo "1.99.0"; exit 0; fi\nexit 0' \
@@ -96,7 +96,7 @@ if_exists_skip:
   tests: [if_exists_skip]
 
 reinstall:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   modes: [devcontainer, standalone]
   setup: |
     printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then echo "1.0.0 (stub)"; exit 0; fi\nexit 0' \
@@ -110,7 +110,7 @@ reinstall:
 
 version_match_idempotency:
   expect_install_failure: true
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [standalone]
   setup: |
     printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then echo "1.25.1"; exit 0; fi\nexit 0' \
@@ -124,7 +124,7 @@ version_match_idempotency:
     skip_install: false
 
 custom_zsh_rcfile:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer]
   options:
     shells: zsh
@@ -132,7 +132,7 @@ custom_zsh_rcfile:
   tests: [custom_zsh_rcfile]
 
 custom_bash_rcfile:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer]
   options:
     shells: bash

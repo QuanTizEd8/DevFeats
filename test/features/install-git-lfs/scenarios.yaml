@@ -2,30 +2,30 @@ defaults:
   modes: [devcontainer]
 
 default:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   tests: [default]
 
 upstream_package:
-  envs: [ubuntu-24.04, rockylinux-9+bash]
+  envs: [ubuntu-stable, rockylinux-current+bash]
   options:
     method: upstream-package
   tests: [upstream_package]
 
 linux_zypper:
-  envs: [opensuse-leap-15.6+bash]
+  envs: [opensuse-leap-current+bash]
   options:
     method: package
   tests: [linux_zypper]
 
 source_prefix:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   options:
     method: source
     prefix: /opt/git-lfs
   tests: [source_prefix]
 
 global_remote_user:
-  envs: [ubuntu-24.04+vscode]
+  envs: [ubuntu-stable+vscode]
   devcontainer:
     remoteUser: vscode
   options:
@@ -37,7 +37,7 @@ global_remote_user:
   tests: [global_remote_user]
 
 file_scope_skip_smudge_repo_hook:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   setup: |
     apt-get update
     apt-get install -y git
@@ -52,7 +52,7 @@ file_scope_skip_smudge_repo_hook:
   tests: [file_scope_skip_smudge_repo_hook]
 
 worktree_manual_hooks:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   setup: |
     apt-get update
     apt-get install -y git
@@ -66,7 +66,7 @@ worktree_manual_hooks:
   tests: [worktree_manual_hooks]
 
 auto_pull_true:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   options:
     method: binary
     config_scope: none
@@ -74,7 +74,7 @@ auto_pull_true:
   tests: [auto_pull_true]
 
 auto_pull_false:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   options:
     method: binary
     config_scope: none
@@ -82,7 +82,7 @@ auto_pull_false:
   tests: [auto_pull_false]
 
 macos_default:
-  envs: [macos-15+brew]
+  envs: [macos-current+brew]
   modes: [macos]
   setup: |
     brew list git-lfs >/dev/null 2>&1 && brew uninstall --formula git-lfs || true

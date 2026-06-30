@@ -73,7 +73,7 @@ Logs are saved to `.local/logs/gha/<commit-sha>/<run-id>/`:
 | `<job-id>.log` | Full GHA job log (timestamps stripped); debug-level installer output in feature tests |
 | `<job-id>.trace.log` | Failed feature-test jobs only: `feat-log-*` artifact (`log_file_level: trace`) |
 
-Feature-test job names look like `Test Feature install-git / default_install.ubuntu-24.04 (linux)` (reusable workflow); artifacts are named `feat-log-<feature>-<scenario-key>-<mode>`. `fetch-gha` resolves the exact artifact name from the job name.
+Feature-test job names look like `Test Feature install-git / default_install.ubuntu-stable (linux)` (reusable workflow); artifacts are named `feat-log-<feature>-<scenario-key>-<mode>`. `fetch-gha` resolves the exact artifact name from the job name.
 
 Per-scenario install logs are also written during local/CI test runs under
 `.local/logs/tests/features/<feature>--<scenario-key>--<mode>.log` (see {doc}`/dev-guide/tests/features`).

@@ -1,5 +1,5 @@
 default:
-  envs: [ubuntu-24.04+vscode]
+  envs: [ubuntu-stable+vscode]
   modes: [devcontainer]
   setup: |
     truncate -s 0 /etc/subuid /etc/subgid
@@ -8,7 +8,7 @@ default:
   tests: [default]
 
 remote_user:
-  envs: [ubuntu-24.04+vscode]
+  envs: [ubuntu-stable+vscode]
   modes: [devcontainer]
   setup: |
     truncate -s 0 /etc/subuid /etc/subgid
@@ -21,7 +21,7 @@ remote_user:
   tests: [remote_user]
 
 container_user:
-  envs: [ubuntu-24.04+vscode]
+  envs: [ubuntu-stable+vscode]
   modes: [devcontainer]
   setup: |
     truncate -s 0 /etc/subuid /etc/subgid
@@ -34,7 +34,7 @@ container_user:
   tests: [container_user]
 
 root_user_config:
-  envs: [ubuntu-24.04+vscode]
+  envs: [ubuntu-stable+vscode]
   modes: [devcontainer]
   setup: |
     truncate -s 0 /etc/subuid /etc/subgid
@@ -43,7 +43,7 @@ root_user_config:
   tests: [root_user_config]
 
 explicit_user:
-  envs: [ubuntu-24.04+vscode]
+  envs: [ubuntu-stable+vscode]
   modes: [devcontainer]
   setup: |
     useradd -m -s /bin/bash devuser
@@ -56,7 +56,7 @@ explicit_user:
   tests: [explicit_user]
 
 multi_user:
-  envs: [ubuntu-24.04+vscode]
+  envs: [ubuntu-stable+vscode]
   modes: [devcontainer]
   setup: |
     useradd -m -s /bin/bash alice
@@ -70,7 +70,7 @@ multi_user:
   tests: [multi_user]
 
 no_users:
-  envs: [ubuntu-24.04+vscode]
+  envs: [ubuntu-stable+vscode]
   modes: [devcontainer]
   setup: |
     truncate -s 0 /etc/subuid /etc/subgid
@@ -81,7 +81,7 @@ no_users:
   tests: [no_users]
 
 nonexistent_user:
-  envs: [ubuntu-24.04+vscode]
+  envs: [ubuntu-stable+vscode]
   modes: [devcontainer]
   setup: |
     truncate -s 0 /etc/subuid /etc/subgid
@@ -101,7 +101,7 @@ nonexistent_user:
 # ---------------------------------------------------------------------------
 
 podman_run:
-  envs: [ubuntu-24.04+vscode]
+  envs: [ubuntu-stable+vscode]
   modes: [devcontainer]
   setup: |
     truncate -s 0 /etc/subuid /etc/subgid
@@ -110,7 +110,7 @@ podman_run:
   tests: [podman_run]
 
 podman_run_explicit_user:
-  envs: [ubuntu-24.04+vscode]
+  envs: [ubuntu-stable+vscode]
   modes: [devcontainer]
   setup: |
     useradd -m -s /bin/bash devuser
@@ -130,7 +130,7 @@ podman_run_explicit_user:
 # ---------------------------------------------------------------------------
 
 standalone_default:
-  envs: [ubuntu-24.04+vscode]
+  envs: [ubuntu-stable+vscode]
   modes: [standalone]
   setup: |
     truncate -s 0 /etc/subuid /etc/subgid
@@ -140,7 +140,7 @@ standalone_default:
   tests: [standalone_default]
 
 standalone_user:
-  envs: [ubuntu-24.04+vscode]
+  envs: [ubuntu-stable+vscode]
   modes: [standalone]
   setup: |
     useradd -m -s /bin/bash devuser

@@ -4,20 +4,20 @@ defaults:
 # ── binary method ──────────────────────────────────────────────────────────────
 
 binary_stable:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   options:
     method: binary
   tests: [binary_stable]
 
 binary_specific_version:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   options:
     method: binary
     version: "2.1.153"
   tests: [binary_specific_version]
 
 binary_musl:
-  envs: [alpine-3.21+bash]
+  envs: [alpine-current+bash]
   options:
     method: binary
   tests: [binary_musl]
@@ -25,20 +25,20 @@ binary_musl:
 # ── upstream-package method ────────────────────────────────────────────────────
 
 upstream_package_default:
-  envs: [ubuntu-24.04, alpine-3.21+bash, fedora-42+bash]
+  envs: [ubuntu-stable, alpine-current+bash, fedora-current+bash]
   options:
     method: upstream-package
   tests: [upstream_package_default]
 
 upstream_package_apt_latest:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   options:
     method: upstream-package
     version: latest
   tests: [upstream_package_apt_latest]
 
 upstream_package_keep_repos:
-  envs: [ubuntu-24.04, alpine-3.21+bash, fedora-42+bash]
+  envs: [ubuntu-stable, alpine-current+bash, fedora-current+bash]
   options:
     method: upstream-package
     keep_repos: true
@@ -47,7 +47,7 @@ upstream_package_keep_repos:
 # ── npm-bundled method ─────────────────────────────────────────────────────────
 
 npm_bundled:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   options:
     method: npm-bundled
   tests: [npm_bundled]
@@ -57,7 +57,7 @@ npm_bundled:
 # method=auto on a system with apt → resolves to upstream-package.
 # Tests that __resolve_method correctly selects upstream-package on Ubuntu.
 auto_apt:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   options:
     method: auto
   tests: [auto_apt]
@@ -65,7 +65,7 @@ auto_apt:
 # ── if_exists behaviour ────────────────────────────────────────────────────────
 
 if_exists_skip:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   modes: [standalone]
   setup: |
     mkdir -p /usr/local/bin
@@ -78,7 +78,7 @@ if_exists_skip:
 
 if_exists_fail:
   expect_install_failure: true
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   modes: [standalone]
   setup: |
     mkdir -p /usr/local/bin
@@ -93,7 +93,7 @@ if_exists_fail:
 
 invalid_method:
   expect_install_failure: true
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   modes: [standalone]
   options:
     method: invalid

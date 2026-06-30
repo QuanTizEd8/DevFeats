@@ -5,14 +5,14 @@ defaults:
     set_user_shells: none
 
 default:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer]
   options:
     setup_zsh: auto
   tests: [default]
 
 setup_zsh_true:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer, standalone]
   options:
     setup_zsh: true
@@ -20,14 +20,14 @@ setup_zsh_true:
   tests: [setup_zsh_true]
 
 setup_zsh_auto:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer, standalone]
   options:
     setup_zsh: auto
   tests: [setup_zsh_auto]
 
 setup_zsh_false:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer, standalone]
   setup: apt-get update && apt-get install -y --no-install-recommends zsh
   options:
@@ -35,7 +35,7 @@ setup_zsh_false:
   tests: [setup_zsh_false]
 
 setup_bash_false:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer, standalone]
   options:
     setup_bash: false
@@ -43,7 +43,7 @@ setup_bash_false:
   tests: [setup_bash_false]
 
 with_install_zsh:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer, standalone]
   setup: apt-get update && apt-get install -y --no-install-recommends zsh
   options:
@@ -51,7 +51,7 @@ with_install_zsh:
   tests: [default_with_zsh]
 
 set_shell_zsh:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer]
   setup: apt-get update && apt-get install -y --no-install-recommends zsh
   options:
@@ -61,12 +61,12 @@ set_shell_zsh:
   tests: [set_shell_zsh]
 
 user_config:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer]
   tests: [user_config]
 
 if_exists_skip:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer]
   setup: |
     mkdir -p /root/.config/zsh
@@ -77,7 +77,7 @@ if_exists_skip:
   tests: [if_exists_skip]
 
 if_exists_update:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer]
   setup: |
     mkdir -p /root/.config/zsh
@@ -88,7 +88,7 @@ if_exists_update:
   tests: [if_exists_update]
 
 if_exists_reinstall:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer]
   setup: |
     mkdir -p /root/.config/zsh
@@ -99,7 +99,7 @@ if_exists_reinstall:
   tests: [if_exists_reinstall]
 
 setup_system_false:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer, standalone]
   options:
     setup_system: false
@@ -107,31 +107,31 @@ setup_system_false:
   tests: [setup_system_false]
 
 setup_skel:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer]
   options:
     setup_skel: true
   tests: [setup_skel]
 
 zdotdir_default:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer]
   tests: [zdotdir_default]
 
 zdotdir_custom:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer]
   options:
     zdotdir: "~/.zsh"
   tests: [zdotdir_custom]
 
 skel_placement:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer]
   tests: [skel_placement]
 
 remote_user:
-  envs: [debian-12+vscode]
+  envs: [debian-stable+vscode]
   modes: [devcontainer]
   options:
     add_remote_user: true
@@ -140,7 +140,7 @@ remote_user:
   tests: [remote_user]
 
 container_user:
-  envs: [debian-12+vscode]
+  envs: [debian-stable+vscode]
   modes: [devcontainer]
   options:
     add_container_user: true
@@ -149,7 +149,7 @@ container_user:
   tests: [container_user]
 
 add_users:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer]
   setup: useradd -m -s /bin/bash devuser
   options:
@@ -159,70 +159,70 @@ add_users:
   tests: [add_users]
 
 no_bash_env:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer, standalone]
   options:
     setup_bash_env: false
   tests: [no_bash_env]
 
 locale_custom:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer]
   options:
     locale: C.UTF-8
   tests: [locale_custom]
 
 no_locale:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer]
   options:
     locale: ''
   tests: [no_locale]
 
 editor_vim:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer]
   options:
     default_editor: vim
   tests: [editor_vim]
 
 custom_shellrc:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer]
   options:
     user_shellrc: .config/shell/rc
   tests: [custom_shellrc]
 
 custom_zsh_theme:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer]
   options:
     zsh_theme: /tmp/mytheme
   tests: [custom_zsh_theme]
 
 custom_bash_theme:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer]
   options:
     bash_theme: /tmp/mybashtheme
   tests: [custom_bash_theme]
 
 no_umask:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer]
   options:
     umask: ''
   tests: [no_umask]
 
 no_editor:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer]
   options:
     default_editor: skip
   tests: [no_editor]
 
 tilde_themes:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer]
   options:
     zsh_theme: ~/myzshtheme
@@ -230,7 +230,7 @@ tilde_themes:
   tests: [tilde_themes]
 
 custom_bash_env_path:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer]
   options:
     bash_env_path: /tmp/mybashenv

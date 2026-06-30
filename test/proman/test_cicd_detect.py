@@ -598,7 +598,7 @@ def test_compute_unit_env_matrix(
 defaults:
   options:
     log_level: trace
-ubuntu-24.04:
+ubuntu-stable:
   env: ubuntu-latest
 debian-bookworm:
   env: debian-latest
@@ -606,7 +606,7 @@ debian-bookworm:
     )
     result = cd.compute_unit_env_matrix()
     assert result == [
-        {"name": "ubuntu-24.04", "env": "ubuntu-latest"},
+        {"name": "ubuntu-stable", "env": "ubuntu-latest"},
         {"name": "debian-bookworm", "env": "debian-latest"},
     ]
 
@@ -625,10 +625,10 @@ def test_compute_unit_macos_matrix(
         """\
 ubuntu-latest:
   image: ubuntu-latest
-macos-15:
+macos-current:
   image: macos-15
   clean_path: true
-macos-15+brew:
+macos-current+brew:
   image: macos-15
   clean_path: true
   path_prepend: /opt/homebrew/bin:/usr/local/bin
@@ -637,11 +637,11 @@ debian-latest:
 """,
     )
     result = cd.compute_unit_macos_matrix()
-    # Only macos-15+brew (path_prepend set) is included; bare macos-15 is excluded
+    # Only macos-current+brew (path_prepend set) is included; bare macos-current is excluded
     # because bootstrap functions need Homebrew to install tools.
     assert result == [
         {
-            "env": "macos-15+brew",
+            "env": "macos-current+brew",
             "runner": "macos-15",
             "clean_path": True,
             "path_prepend": "/opt/homebrew/bin:/usr/local/bin",

@@ -1,10 +1,10 @@
 default:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   modes: [devcontainer, standalone]
   tests: [default]
 
 binary_pinned_version:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   modes: [devcontainer, standalone]
   options:
     version: "0.14.2"
@@ -12,7 +12,7 @@ binary_pinned_version:
   tests: [binary_pinned_version]
 
 binary_custom_prefix:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   modes: [devcontainer, standalone]
   options:
     method: binary
@@ -22,12 +22,12 @@ binary_custom_prefix:
   tests: [binary_custom_prefix]
 
 completions_fish:
-  envs: [ubuntu-24.04+fish]
+  envs: [ubuntu-stable+fish]
   modes: [devcontainer, standalone]
   tests: [completions_fish]
 
 no_completions:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   modes: [devcontainer, standalone]
   options:
     method: binary
@@ -36,7 +36,7 @@ no_completions:
 
 if_exists_fail:
   expect_install_failure: true
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [standalone]
   setup: |
     printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then echo "typst 9.9.9"; exit 0; fi\nexit 0' \
@@ -50,7 +50,7 @@ if_exists_fail:
     skip_install: false
 
 if_exists_skip:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [standalone]
   setup: |
     printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then echo "typst 9.9.9"; exit 0; fi\nexit 0' \
@@ -62,7 +62,7 @@ if_exists_skip:
   tests: [if_exists_skip]
 
 reinstall:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   modes: [devcontainer, standalone]
   setup: |
     printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then echo "typst 0.1.0 (stub)"; exit 0; fi\nexit 0' \

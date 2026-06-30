@@ -261,7 +261,7 @@ test-install-mod module:
 
 [
   group('test'),
-  doc('Run install framework tests in one container e.g. just test-install-env ubuntu-24.04.')
+  doc('Run install framework tests in one container e.g. just test-install-env ubuntu-stable.')
 ]
 test-install-env env *args:
     just capture test-install-env -- pixi run --environment test test-install-env {{env}} {{args}}

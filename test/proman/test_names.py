@@ -18,13 +18,13 @@ def test_expand_envs_always_includes_env() -> None:
     """Single-env scenarios get env suffix in run key."""
     entries = expand_envs(
         "default",
-        {"envs": ["ubuntu-24.04"], "tests": ["default.sh"]},
+        {"envs": ["ubuntu-stable"], "tests": ["default.sh"]},
     )
     assert entries == [
         (
-            "default.ubuntu-24.04",
-            "ubuntu-24.04",
-            {"envs": ["ubuntu-24.04"], "tests": ["default.sh"]},
+            "default.ubuntu-stable",
+            "ubuntu-stable",
+            {"envs": ["ubuntu-stable"], "tests": ["default.sh"]},
         ),
     ]
 
@@ -34,13 +34,13 @@ def test_expand_envs_multi_env_unchanged() -> None:
     entries = expand_envs(
         "package_default",
         {
-            "envs": ["debian-12+bash", "ubuntu-24.04"],
+            "envs": ["debian-stable+bash", "ubuntu-stable"],
             "tests": ["package_default.sh"],
         },
     )
     assert [e[0] for e in entries] == [
-        "package_default.debian-12+bash",
-        "package_default.ubuntu-24.04",
+        "package_default.debian-stable+bash",
+        "package_default.ubuntu-stable",
     ]
 
 
@@ -53,15 +53,15 @@ def test_mode_artifact_suffix_maps_standalone_to_linux() -> None:
 
 def test_host_log_basename_includes_feature_and_mode() -> None:
     """Host log basename encodes feature, env-qualified key, and mode."""
-    run = FeatureTestRun("install-direnv", "default.ubuntu-24.04", "devcontainer")
+    run = FeatureTestRun("install-direnv", "default.ubuntu-stable", "devcontainer")
     assert host_log_basename(run) == (
-        "install-direnv--default.ubuntu-24.04--devcontainer.log"
+        "install-direnv--default.ubuntu-stable--devcontainer.log"
     )
 
 
 def test_host_log_paths_unique_across_features_and_modes() -> None:
     """Different features and modes must not share the same host log path."""
-    key = "default.ubuntu-24.04"
+    key = "default.ubuntu-stable"
     a = host_log_path(FeatureTestRun("install-direnv", key, "devcontainer"))
     b = host_log_path(FeatureTestRun("install-git", key, "devcontainer"))
     c = host_log_path(FeatureTestRun("install-direnv", key, "standalone"))
@@ -72,14 +72,14 @@ def test_host_log_paths_unique_across_features_and_modes() -> None:
 
 def test_artifact_name_pattern() -> None:
     """Artifact names use single-dash segments (not host log double-dash)."""
-    run = FeatureTestRun("install-direnv", "default.ubuntu-24.04", "standalone")
-    assert artifact_name(run) == ("feat-log-install-direnv-default.ubuntu-24.04-linux")
+    run = FeatureTestRun("install-direnv", "default.ubuntu-stable", "standalone")
+    assert artifact_name(run) == ("feat-log-install-direnv-default.ubuntu-stable-linux")
 
 
 def test_bind_mount_container_log_path_matches_host_basename() -> None:
     """Bind-mount destination reuses host log basename; slashes sanitized in key."""
-    run = FeatureTestRun("install-git", "log_file/ubuntu-24.04", "devcontainer")
+    run = FeatureTestRun("install-git", "log_file/ubuntu-stable", "devcontainer")
     assert bind_mount_container_log_path(run) == (
-        "/log-out/install-git--log_file_ubuntu-24.04--devcontainer.log"
+        "/log-out/install-git--log_file_ubuntu-stable--devcontainer.log"
     )
-    assert sanitize_segment("log_file/ubuntu-24.04") == "log_file_ubuntu-24.04"
+    assert sanitize_segment("log_file/ubuntu-stable") == "log_file_ubuntu-stable"

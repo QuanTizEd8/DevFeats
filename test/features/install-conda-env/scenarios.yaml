@@ -1,5 +1,5 @@
 inline_env:
-  envs: [condaforge-miniforge3]
+  envs: [miniforge-current]
   modes: [devcontainer]
   options:
     env_name: myenv
@@ -7,7 +7,7 @@ inline_env:
   tests: [inline_env]
 
 python_version:
-  envs: [condaforge-miniforge3]
+  envs: [miniforge-current]
   modes: [devcontainer]
   options:
     env_name: py311
@@ -15,7 +15,7 @@ python_version:
   tests: [python_version]
 
 env_files:
-  envs: [condaforge-miniforge3]
+  envs: [miniforge-current]
   modes: [devcontainer]
   setup: |
     mkdir -p /tmp/test-envs
@@ -25,7 +25,7 @@ env_files:
   tests: [env_files]
 
 env_dirs:
-  envs: [condaforge-miniforge3]
+  envs: [miniforge-current]
   modes: [devcontainer]
   setup: |
     mkdir -p /tmp/test-envs
@@ -36,7 +36,7 @@ env_dirs:
   tests: [env_dirs]
 
 multi_env_files:
-  envs: [condaforge-miniforge3]
+  envs: [miniforge-current]
   modes: [devcontainer]
   setup: |
     mkdir -p /tmp/test-envs
@@ -47,7 +47,7 @@ multi_env_files:
   tests: [multi_env_files]
 
 update_existing:
-  envs: [condaforge-miniforge3]
+  envs: [miniforge-current]
   modes: [devcontainer]
   setup: |
     mkdir -p /tmp/test-envs
@@ -59,7 +59,7 @@ update_existing:
   tests: [update_existing]
 
 channels:
-  envs: [condaforge-miniforge3]
+  envs: [miniforge-current]
   modes: [devcontainer]
   options:
     env_name: chanenv
@@ -68,7 +68,7 @@ channels:
   tests: [channels]
 
 strict_channel_priority:
-  envs: [condaforge-miniforge3]
+  envs: [miniforge-current]
   modes: [devcontainer]
   options:
     env_name: strictenv
@@ -78,7 +78,7 @@ strict_channel_priority:
   tests: [strict_channel_priority]
 
 solver_conda:
-  envs: [condaforge-miniforge3]
+  envs: [miniforge-current]
   modes: [devcontainer]
   options:
     env_name: solverenv
@@ -87,7 +87,7 @@ solver_conda:
   tests: [solver_conda]
 
 pip_requirements:
-  envs: [condaforge-miniforge3]
+  envs: [miniforge-current]
   modes: [devcontainer]
   setup: printf 'tomli\n' > /tmp/requirements.txt
   options:
@@ -97,7 +97,7 @@ pip_requirements:
   tests: [pip_requirements]
 
 pip_env_override:
-  envs: [condaforge-miniforge3]
+  envs: [miniforge-current]
   modes: [devcontainer]
   setup: printf 'tomli\n' > /tmp/requirements.txt
   options:
@@ -108,7 +108,7 @@ pip_env_override:
   tests: [pip_env_override]
 
 post_env_script:
-  envs: [condaforge-miniforge3]
+  envs: [miniforge-current]
   modes: [devcontainer]
   setup: |
     printf '#!/bin/bash\necho "$1" > /tmp/post-env-ran\n' > /tmp/post-env.sh
@@ -120,7 +120,7 @@ post_env_script:
   tests: [post_env_script]
 
 log_file:
-  envs: [condaforge-miniforge3]
+  envs: [miniforge-current]
   modes: [devcontainer]
   options:
     env_name: logenv
@@ -129,7 +129,7 @@ log_file:
   tests: [log_file]
 
 keep_cache:
-  envs: [condaforge-miniforge3]
+  envs: [miniforge-current]
   modes: [devcontainer]
   options:
     env_name: cleanenv
@@ -138,7 +138,7 @@ keep_cache:
   tests: [keep_cache]
 
 env_files_uri:
-  envs: [condaforge-miniforge3]
+  envs: [miniforge-current]
   modes: [devcontainer]
   setup: |
     mkdir -p /tmp/test-envs

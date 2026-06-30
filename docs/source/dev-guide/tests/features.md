@@ -60,7 +60,7 @@ container. The test runner always copies the install log to a canonical host fil
 
 `proman-test-run` (via `just test-feats`) writes one host log per test run under
 `.local/logs/tests/features/<feature>--<scenario-key>--<mode>.log` (gitignored), where
-`scenario-key` always includes the environment name (e.g. `default.ubuntu-24.04`).
+`scenario-key` always includes the environment name (e.g. `default.ubuntu-stable`).
 Layout is defined in `.config/proman/_main.yaml` (`path.local_logs_features`).
 
 | Mode | How the log reaches the host |
@@ -84,12 +84,12 @@ defaults:
 
 # Each top-level key is a scenario name
 default_install:
-  envs: [ubuntu-24.04]          # Docker image keys from test/environments.yaml
+  envs: [ubuntu-stable]          # Docker image keys from test/environments.yaml
   modes: [devcontainer]         # devcontainer | standalone | macos
   tests: [default_install.sh]   # test scripts to run (from tests/)
 
 source_build:
-  envs: [ubuntu-24.04, alpine-3.21]
+  envs: [ubuntu-stable, alpine-current]
   modes: [devcontainer]
   options:
     method: source
@@ -97,7 +97,7 @@ source_build:
   tests: [source_build.sh]
 
 gitconfig_user:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   modes: [devcontainer]
   setup: useradd -m -s /bin/bash vscode   # shell commands run inside the container before install
   options:
@@ -108,20 +108,20 @@ gitconfig_user:
   tests: [gitconfig_user.sh]
 
 network_isolated:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   modes: [standalone]
   standalone:
     network: none    # run with --network none
   tests: [network_isolated.sh]
 
 macos_default:
-  envs: [macos-latest]   # references a macOS environment in test/environments.yaml
+  envs: [macos-current+brew]   # references a macOS environment in test/environments.yaml
   modes: [macos]
   tests: [macos_default.sh]
 
 invalid_method:
   expect_install_failure: true   # assert the installer exits non-zero
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   modes: [devcontainer]
   options:
     method: invalid_value
@@ -212,7 +212,7 @@ invalid_method:
 # scenarios.yaml
 invalid_method:
   expect_install_failure: true
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   modes: [devcontainer]
   options:
     method: invalid
@@ -318,16 +318,16 @@ just test-feats-macos install-git
 `test/environments.yaml` is the central registry of all Docker images. Each key maps to a Docker image, optionally with a build step:
 
 ```yaml
-ubuntu-24.04:
+ubuntu-stable:
   image: ubuntu:24.04
 
-alpine-3.21+bash:
+alpine-current+bash:
   image: alpine:3.21
   build:
     dockerfile: apk add --no-cache bash
 ```
 
-Scenarios reference environment keys. The `+`-suffixed variants (e.g. `ubuntu-24.04+bash+git`) are pre-built images with extra packages for tests that need those tools available before the feature installs anything.
+Scenarios reference environment keys. The `+`-suffixed variants (e.g. `ubuntu-stable+bash+git`) are pre-built images with extra packages for tests that need those tools available before the feature installs anything.
 
 The `build.dockerfile` value is inline shell commands. The test runner generates `FROM <image>\nRUN <<'EOF'\nset -eux\n<commands>\nEOF` and builds the image as `devfeats-env-<name>:latest`. For macOS environments (image key starts with `macos`), the commands run as native setup on the GHA runner before tests.
 
@@ -335,7 +335,7 @@ Custom environments with pre-condition state (e.g. an existing user, a stub tool
 
 ```yaml
 # Example: environment with a pre-created non-root user + sudo
-ubuntu-24.04+vscode-user:
+ubuntu-stable+vscode:
   image: ubuntu:24.04
   build:
     dockerfile: |
@@ -345,7 +345,7 @@ ubuntu-24.04+vscode-user:
       echo "vscode ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
 # Example: environment with a stub binary pre-installed
-ubuntu-24.04+tool-stub:
+ubuntu-stable+tool-stub:
   image: ubuntu:24.04
   build:
     dockerfile: |
@@ -382,34 +382,36 @@ All named test environments are declared in `test/environments.yaml`. The canoni
 
 | Key | Docker image | Notes |
 |---|---|---|
-| `ubuntu-24.04` | `ubuntu:24.04` | Ubuntu 24.04 LTS (Noble Numbat) |
-| `ubuntu-26.04` | `ubuntu:26.04` | Ubuntu 26.04 LTS (Plucky Puffin) |
-| `debian-12` | `debian:12` | Debian 12 Bookworm |
-| `debian-13` | `debian:13` | Debian 13 Trixie |
-| `alpine-3.21` | `alpine:3.21` | Alpine 3.21 |
-| `fedora-42` | `fedora:42` | Fedora 42 |
-| `rockylinux-9` | `rockylinux:9` | Rocky Linux 9 (RHEL-compatible) |
-| `opensuse-leap-15.6` | `opensuse/leap:15.6` | openSUSE Leap 15.6 |
-| `archlinux` | `archlinux:base-YYYYMMDD.0.XXXXXX` | Arch Linux — pinned to a dated immutable tag |
-| `macos-15` | `macos-15` | macOS Sequoia, bare (no Homebrew) |
-| `macos-15+brew` | `macos-15` | macOS Sequoia with Homebrew |
+| `ubuntu-stable` | `ubuntu:24.04` | Ubuntu 24.04 LTS (Noble Numbat) — primary LTS baseline |
+| `ubuntu-current` | `ubuntu:26.04` | Ubuntu 26.04 LTS — newer generation in matrix |
+| `debian-stable` | `debian:12` | Debian 12 Bookworm — primary baseline |
+| `debian-current` | `debian:13` | Debian 13 Trixie — newer generation in matrix |
+| `alpine-current` | `alpine:3.21` | Alpine — version tracked in CI |
+| `fedora-current` | `fedora:42` | Fedora — version tracked in CI |
+| `rockylinux-current` | `rockylinux:10` | Rocky Linux — version tracked in CI |
+| `opensuse-leap-current` | `opensuse/leap:15.6` | openSUSE Leap — version tracked in CI |
+| `archlinux-current` | `archlinux:base-YYYYMMDD.0.XXXXXX` | Arch Linux — pinned dated immutable tag |
+| `macos-current` | `macos-15` | macOS Sequoia, bare (no Homebrew); `image` is GHA runner label |
+| `macos-current+brew` | `macos-15` | macOS Sequoia with Homebrew |
 
 **Never use rolling tags** (`ubuntu:latest`, `debian:latest`, etc.) — they silently change their contents and make CI non-reproducible.
 
 ### Naming convention
 
 ```
-{os_id}-{version}                     # pinned base, no augmentation
+{family}-{track}[+{augmentation}...]  # track: stable | current (see header in environments.yaml)
 {base}+{tool}                         # base + tool/shell/binary installed
 {base}+{tool}-{version}               # base + specific version of tool
 {base}+{tool1}+{tool2}                # base + multiple tools/toolchains
 ```
 
+**Tracks:** `stable` and `current` are dual-track slots for Ubuntu and Debian only. All other families use a single `current` key for the version pinned in `image:` — bump the pin without renaming the key.
+
 Where each `{tool}` segment names what is installed: a binary (`bash`, `git`, `go`, `brew`, `curl`), a version-pinned binary (`jq-1.8.1`, `gh-2.67.0`), or a build toolchain (`autotools`, `build-essential`, `ncurses`).
 
 No categorical suffixes (`-preinstalled`, `-build-deps`, `-base`). The name should describe what's in the image, not why it was created.
 
-**Which distros need a `+bash` variant:** Alpine, Rocky Linux, and openSUSE Leap do not ship bash by default. Their `+bash` variants (e.g. `alpine-3.21+bash`) are required for any test that uses the test shim or the devcontainer runner. Ubuntu, Debian, Fedora, and Arch Linux ship bash by default and do not need `+bash` variants. (`archlinux:base` includes bash via the base package group.)
+**Which distros need a `+bash` variant:** Alpine, Rocky Linux, and openSUSE Leap do not ship bash by default. Their `+bash` variants (e.g. `alpine-current+bash`) are required for any test that uses the test shim or the devcontainer runner. Ubuntu, Debian, Fedora, and Arch Linux ship bash by default and do not need `+bash` variants. (`archlinux:base` includes bash via the base package group.)
 
 **How to add a new environment:** add the entry to `test/environments.yaml` under the appropriate section header (base images → +bash → +shell → +tool[-version] → +toolchain → from:-chain → macOS). Verify it with `python3 -c "import yaml; yaml.safe_load(open('test/environments.yaml').read())"` before referencing it in a `scenarios.yaml`.
 
@@ -473,18 +475,18 @@ When the same option combination runs on multiple distros, use **one scenario** 
 ```yaml
 # Good: one scenario, multiple envs
 package_default:
-  envs: [alpine-3.21+bash, debian-12, fedora-42, opensuse-leap-15.6+bash, archlinux]
+  envs: [alpine-current+bash, debian-stable, fedora-current, opensuse-leap-current+bash, archlinux-current]
   options: {method: package}
   tests: [package_default]
 
 # Bad: three separate scenarios with identical options
 package_alpine:
-  envs: [alpine-3.21+bash]
+  envs: [alpine-current+bash]
   options: {method: package}
   tests: [package_alpine]
 
 package_debian:
-  envs: [debian-12]
+  envs: [debian-stable]
   options: {method: package}
   tests: [package_debian]
 ```

@@ -1,5 +1,5 @@
 bundle_archive_tools:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   modes: [standalone]
   options:
     archive_tools: true

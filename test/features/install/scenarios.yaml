@@ -1,5 +1,5 @@
 defaults:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   modes: [devcontainer, standalone]
 
 no_op:

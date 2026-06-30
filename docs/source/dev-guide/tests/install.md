@@ -28,7 +28,7 @@ Run `just sync-src` before local runs so `src/install-jq/install.bash` exists.
 just sync-src
 just test-install                              # all modules
 just test-install-mod dep_install              # one module
-just test-install-env ubuntu-24.04           # in one container (requires Docker)
+just test-install-env ubuntu-stable           # in one container (requires Docker)
 just test-install-envs                       # all environments in scenarios.yaml
 
 bash .dev/scripts/test/run-install.sh --filter "dep_" --jobs 1

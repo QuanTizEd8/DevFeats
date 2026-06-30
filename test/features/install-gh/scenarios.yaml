@@ -1,13 +1,13 @@
 default:
   envs:
-  - ubuntu-24.04
+  - ubuntu-stable
   modes:
   - devcontainer
   tests:
   - default.sh
 binary_pinned_version:
   envs:
-  - ubuntu-24.04
+  - ubuntu-stable
   modes:
   - devcontainer
   options:
@@ -17,11 +17,11 @@ binary_pinned_version:
   - binary_pinned_version.sh
 upstream_package_default:
   envs:
-  - ubuntu-24.04
-  - debian-12
-  - alpine-3.21
-  - fedora-42
-  - opensuse-leap-15.6+bash
+  - ubuntu-stable
+  - debian-stable
+  - alpine-current
+  - fedora-current
+  - opensuse-leap-current+bash
   modes:
   - devcontainer
   options:
@@ -30,7 +30,7 @@ upstream_package_default:
   - upstream_package_default.sh
 binary_custom_prefix:
   envs:
-  - ubuntu-24.04
+  - ubuntu-stable
   modes:
   - devcontainer
   options:
@@ -41,7 +41,7 @@ binary_custom_prefix:
   - binary_custom_prefix.sh
 custom_prefix_no_symlink:
   envs:
-  - ubuntu-24.04
+  - ubuntu-stable
   modes:
   - devcontainer
   options:
@@ -52,7 +52,7 @@ custom_prefix_no_symlink:
   - custom_prefix_no_symlink.sh
 binary_no_completions:
   envs:
-  - ubuntu-24.04
+  - ubuntu-stable
   modes:
   - devcontainer
   options:
@@ -62,7 +62,7 @@ binary_no_completions:
   - binary_no_completions.sh
 upstream_package_no_completions:
   envs:
-  - ubuntu-24.04
+  - ubuntu-stable
   modes:
   - devcontainer
   options:
@@ -72,7 +72,7 @@ upstream_package_no_completions:
   - upstream_package_no_completions.sh
 git_protocol_https:
   envs:
-  - ubuntu-24.04+git+sudo+vscode
+  - ubuntu-stable+git+sudo+vscode
   modes:
   - devcontainer
   options:
@@ -87,7 +87,7 @@ git_protocol_https:
   - git_protocol_https.sh
 setup_git:
   envs:
-  - ubuntu-24.04+git+sudo+vscode
+  - ubuntu-stable+git+sudo+vscode
   modes:
   - devcontainer
   options:
@@ -102,7 +102,7 @@ setup_git:
   - setup_git.sh
 sign_commits_ssh:
   envs:
-  - ubuntu-24.04+git+sudo+vscode
+  - ubuntu-stable+git+sudo+vscode
   modes:
   - devcontainer
   options:
@@ -117,7 +117,7 @@ sign_commits_ssh:
   - sign_commits_ssh.sh
 sign_commits_gpg:
   envs:
-  - ubuntu-24.04+git+sudo+vscode
+  - ubuntu-stable+git+sudo+vscode
   modes:
   - devcontainer
   options:
@@ -132,7 +132,7 @@ sign_commits_gpg:
   - sign_commits_gpg.sh
 if_exists_skip:
   envs:
-  - ubuntu-24.04+gh-2.67.0
+  - ubuntu-stable+gh-2.67.0
   modes:
   - devcontainer
   options:
@@ -141,7 +141,7 @@ if_exists_skip:
   - if_exists_skip.sh
 if_exists_skip_no_mutation:
   envs:
-  - ubuntu-24.04+gh-2.67.0
+  - ubuntu-stable+gh-2.67.0
   modes:
   - devcontainer
   setup: 'apt-get purge -y curl
@@ -158,7 +158,7 @@ if_exists_skip_no_mutation:
 version_match_idempotency:
   expect_install_failure: true
   envs:
-  - ubuntu-24.04+gh-2.67.0
+  - ubuntu-stable+gh-2.67.0
   modes:
   - standalone
   options:
@@ -169,7 +169,7 @@ version_match_idempotency:
   - version_match_idempotency.sh
 installer_dir:
   envs:
-  - ubuntu-24.04
+  - ubuntu-stable
   modes:
   - devcontainer
   options:
@@ -179,7 +179,7 @@ installer_dir:
   - installer_dir.sh
 log_file:
   envs:
-  - ubuntu-24.04
+  - ubuntu-stable
   modes:
   - devcontainer
   options:
@@ -189,7 +189,7 @@ log_file:
   - log_file.sh
 binary_custom_prefix_nonroot:
   envs:
-  - ubuntu-24.04+vscode
+  - ubuntu-stable+vscode
   modes:
   - devcontainer
   options:
@@ -202,7 +202,7 @@ binary_custom_prefix_nonroot:
   - binary_custom_prefix_nonroot.sh
 ghes_hostname:
   envs:
-  - ubuntu-24.04+git+sudo+vscode
+  - ubuntu-stable+git+sudo+vscode
   modes:
   - devcontainer
   options:
@@ -218,7 +218,7 @@ ghes_hostname:
   - ghes_hostname.sh
 add_users:
   envs:
-  - ubuntu-24.04+git+sudo+vscode
+  - ubuntu-stable+git+sudo+vscode
   modes:
   - devcontainer
   setup: 'useradd -m -s /bin/bash -u 1001 testuser
@@ -237,7 +237,7 @@ add_users:
   - add_users.sh
 extensions:
   envs:
-  - ubuntu-24.04+git+sudo+vscode
+  - ubuntu-stable+git+sudo+vscode
   modes:
   - devcontainer
   options:
@@ -253,7 +253,7 @@ extensions:
   - extensions.sh
 binary_symlink_user_home_prefix:
   envs:
-  - ubuntu-24.04
+  - ubuntu-stable
   modes:
   - devcontainer
   options:
@@ -265,7 +265,7 @@ binary_symlink_user_home_prefix:
 if_exists_fail_preinstalled:
   expect_install_failure: true
   envs:
-  - ubuntu-24.04
+  - ubuntu-stable
   modes:
   - standalone
   setup: 'mkdir -p /usr/local/bin
@@ -284,7 +284,7 @@ if_exists_fail_preinstalled:
 if_exists_fail_preinstalled_network_isolated:
   expect_install_failure: true
   envs:
-  - ubuntu-24.04
+  - ubuntu-stable
   modes:
   - standalone
   setup: 'mkdir -p /usr/local/bin
@@ -304,7 +304,7 @@ if_exists_fail_preinstalled_network_isolated:
 network_isolated_version_resolution:
   expect_install_failure: true
   envs:
-  - ubuntu-24.04
+  - ubuntu-stable
   modes:
   - standalone
   standalone:
@@ -317,7 +317,7 @@ network_isolated_version_resolution:
 invalid_if_exists:
   expect_install_failure: true
   envs:
-  - ubuntu-24.04
+  - ubuntu-stable
   modes:
   - standalone
   standalone:
@@ -329,7 +329,7 @@ invalid_if_exists:
 invalid_method:
   expect_install_failure: true
   envs:
-  - ubuntu-24.04
+  - ubuntu-stable
   modes:
   - standalone
   standalone:
@@ -341,7 +341,7 @@ invalid_method:
 invalid_sign_commits:
   expect_install_failure: true
   envs:
-  - ubuntu-24.04
+  - ubuntu-stable
   modes:
   - standalone
   standalone:
@@ -352,6 +352,6 @@ invalid_sign_commits:
     sign_commits: invalid
 macos_binary_default:
   envs:
-  - macos-15+brew
+  - macos-current+brew
   tests:
   - macos_binary_default.sh

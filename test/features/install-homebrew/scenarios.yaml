@@ -1,19 +1,19 @@
 linux_default:
-  envs: [ubuntu-24.04, debian-12]
+  envs: [ubuntu-stable, debian-stable]
   modes: [devcontainer]
   setup: |
     apt-get update -qq && apt-get install -y --no-install-recommends zsh
   tests: [linux_default]
 
 discovery_disabled:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   modes: [devcontainer]
   options:
     prefix_discovery: none
   tests: [discovery_disabled]
 
 export_path_idempotent:
-  envs: [ubuntu-24.04+homebrew]
+  envs: [ubuntu-stable+homebrew]
   modes: [devcontainer]
   options:
     if_exists: update
@@ -30,26 +30,26 @@ export_path_idempotent:
   tests: [export_path_idempotent]
 
 if_exists_skip:
-  envs: [ubuntu-24.04+homebrew]
+  envs: [ubuntu-stable+homebrew]
   modes: [devcontainer]
   tests: [if_exists_skip]
 
 linux_pacman:
-  envs: [archlinux]
+  envs: [archlinux-current]
   modes: [devcontainer]
   setup: |
     pacman -Sy --noconfirm zsh
   tests: [linux_pacman]
 
 linux_rpm:
-  envs: [fedora-42+bash]
+  envs: [fedora-current+bash]
   modes: [devcontainer]
   setup: |
     dnf install -y zsh
   tests: [linux_rpm]
 
 linux_zypper:
-  envs: [opensuse-leap-15.6+bash]
+  envs: [opensuse-leap-current+bash]
   modes: [devcontainer]
   setup: |
     set +e
@@ -60,63 +60,63 @@ linux_zypper:
   tests: [linux_zypper]
 
 if_exists_reinstall:
-  envs: [ubuntu-24.04+homebrew]
+  envs: [ubuntu-stable+homebrew]
   modes: [devcontainer]
   options:
     if_exists: reinstall
   tests: [if_exists_reinstall]
 
 update_false:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   modes: [devcontainer]
   options:
     update: false
   tests: [update_false]
 
 log_file:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   modes: [devcontainer]
   options:
     log_file: /tmp/brew.log
   tests: [log_file]
 
 shellenv_remote_user:
-  envs: [ubuntu-24.04+vscode]
+  envs: [ubuntu-stable+vscode]
   modes: [devcontainer]
   devcontainer:
     remoteUser: vscode
   tests: [shellenv_remote_user]
 
 macos_default:
-  envs: [macos-15+brew]
+  envs: [macos-current+brew]
   tests: [macos_default]
 
 macos_fresh_install:
-  envs: [macos-15]
+  envs: [macos-current]
   tests: [macos_fresh_install]
 
 macos_if_exists_fail:
-  envs: [macos-15+brew]
+  envs: [macos-current+brew]
   options:
     if_exists: fail
   expect_install_failure: true
   tests: [macos_if_exists_fail]
 
 macos_if_exists_reinstall:
-  envs: [macos-15+brew]
+  envs: [macos-current+brew]
   options:
     if_exists: reinstall
     prefix_discovery: shell
   tests: [macos_if_exists_reinstall]
 
 macos_discovery_disabled:
-  envs: [macos-15+brew]
+  envs: [macos-current+brew]
   options:
     prefix_discovery: none
   tests: [macos_discovery_disabled]
 
 macos_export_path_idempotent:
-  envs: [macos-15]
+  envs: [macos-current]
   setup: |
     # Pre-seed one stale discovery block per dotfile before the feature runs.
     # The fresh install discovers the new prefix and updates the stale block in
@@ -134,7 +134,7 @@ macos_export_path_idempotent:
   tests: [macos_export_path_idempotent]
 
 macos_brew_git_remote:
-  envs: [macos-15+brew]
+  envs: [macos-current+brew]
   options:
     if_exists: update
     update: false
@@ -155,7 +155,7 @@ macos_brew_git_remote:
   tests: [macos_brew_git_remote]
 
 macos_no_install_from_api:
-  envs: [macos-15+brew]
+  envs: [macos-current+brew]
   options:
     if_exists: update
     update: false
@@ -168,13 +168,13 @@ macos_no_install_from_api:
   tests: [macos_no_install_from_api]
 
 macos_logfile:
-  envs: [macos-15+brew]
+  envs: [macos-current+brew]
   options:
     log_file: /tmp/brew-macos-test.log
   tests: [macos_logfile]
 
 macos_update_false:
-  envs: [macos-15+brew]
+  envs: [macos-current+brew]
   options:
     update: false
     log_file: /tmp/brew-update-false-test.log

@@ -1,29 +1,29 @@
 default:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer]
   tests: [default]
 
 user_config:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer]
   tests: [user_config]
 
 binary_custom_prefix:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer]
   options:
     prefix: /opt/oh-my-bash
   tests: [binary_custom_prefix]
 
 if_exists_skip:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer]
   options:
     if_exists: skip
   tests: [if_exists_skip]
 
 if_exists_update:
-  envs: [debian-12]
+  envs: [debian-stable]
   modes: [devcontainer]
   options:
     if_exists: update

@@ -4,13 +4,13 @@ defaults:
 # ── binary method ──────────────────────────────────────────────────────────────
 
 binary_latest:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   options:
     method: binary
   tests: [binary_latest]
 
 binary_specific_version:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   options:
     method: binary
     version: "0.130.0"
@@ -19,17 +19,17 @@ binary_specific_version:
 # ── npm-bundled method ─────────────────────────────────────────────────────────
 
 npm_bundled:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   options:
     method: npm-bundled
   tests: [npm_bundled]
 
 # ── npm method ─────────────────────────────────────────────────────────────────
 
-# npm is not available by default on ubuntu-24.04; the setup block pre-installs it
+# npm is not available by default on ubuntu-stable; the setup block pre-installs it
 # so the feature can use system npm rather than bootstrapping its own.
 npm_system:
-  envs: [ubuntu-24.04+node]
+  envs: [ubuntu-stable+node]
   options:
     method: npm
   tests: [npm_system]
@@ -38,7 +38,7 @@ npm_system:
 
 # method=auto on a minimal Ubuntu image (no npm or brew) → resolves to npm-bundled.
 auto_npm_bundled:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   options:
     method: auto
   tests: [auto_npm_bundled]
@@ -47,7 +47,7 @@ auto_npm_bundled:
 # binary method's when: condition now matches the normalized arch.  Verifies that
 # auto does not fall back to npm on a supported arch just because npm is present.
 auto_binary_npm_present:
-  envs: [ubuntu-24.04+node]
+  envs: [ubuntu-stable+node]
   options:
     method: auto
   tests: [auto_binary_npm_present]
@@ -55,7 +55,7 @@ auto_binary_npm_present:
 # ── if_exists behaviour ────────────────────────────────────────────────────────
 
 if_exists_skip:
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   modes: [standalone]
   setup: |
     mkdir -p /usr/local/bin
@@ -68,7 +68,7 @@ if_exists_skip:
 
 if_exists_fail:
   expect_install_failure: true
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   modes: [standalone]
   setup: |
     mkdir -p /usr/local/bin
@@ -83,7 +83,7 @@ if_exists_fail:
 
 invalid_method:
   expect_install_failure: true
-  envs: [ubuntu-24.04]
+  envs: [ubuntu-stable]
   modes: [standalone]
   options:
     method: invalid

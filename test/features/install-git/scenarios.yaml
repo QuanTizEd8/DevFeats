@@ -1,8 +1,8 @@
 package_default:
   envs:
-  - ubuntu-24.04
-  - alpine-3.21
-  - fedora-42
+  - ubuntu-stable
+  - alpine-current
+  - fedora-current
   modes:
   - devcontainer
   options:
@@ -12,7 +12,7 @@ package_default:
 
 upstream_package:
   envs:
-  - ubuntu-24.04
+  - ubuntu-stable
   modes:
   - devcontainer
   options:
@@ -21,7 +21,7 @@ upstream_package:
   - upstream_package.sh
 package_no_ppa:
   envs:
-  - debian-12
+  - debian-stable
   modes:
   - devcontainer
   options:
@@ -30,7 +30,7 @@ package_no_ppa:
   - package_no_ppa.sh
 package_stable:
   envs:
-  - ubuntu-24.04
+  - ubuntu-stable
   modes:
   - devcontainer
   options:
@@ -43,7 +43,7 @@ package_stable:
   - package_stable.sh
 gitconfig_system:
   envs:
-  - ubuntu-24.04
+  - ubuntu-stable
   modes:
   - devcontainer
   options:
@@ -58,7 +58,7 @@ gitconfig_system:
   - gitconfig_system.sh
 gitconfig_identity:
   envs:
-  - ubuntu-24.04
+  - ubuntu-stable
   modes:
   - devcontainer
   options:
@@ -68,7 +68,7 @@ gitconfig_identity:
   - gitconfig_identity.sh
 log_file:
   envs:
-  - ubuntu-24.04
+  - ubuntu-stable
   modes:
   - devcontainer
   options:
@@ -77,7 +77,7 @@ log_file:
   - log_file.sh
 source_stable:
   envs:
-  - ubuntu-24.04
+  - ubuntu-stable
   modes:
   - devcontainer
   options:
@@ -87,7 +87,7 @@ source_stable:
   - source_stable.sh
 source_pinned:
   envs:
-  - ubuntu-24.04
+  - ubuntu-stable
   modes:
   - devcontainer
   options:
@@ -97,7 +97,7 @@ source_pinned:
   - source_pinned.sh
 source_installer_dir:
   envs:
-  - ubuntu-24.04
+  - ubuntu-stable
   modes:
   - devcontainer
   options:
@@ -108,7 +108,7 @@ source_installer_dir:
   - source_installer_dir.sh
 source_custom_prefix:
   envs:
-  - ubuntu-24.04
+  - ubuntu-stable
   modes:
   - devcontainer
   options:
@@ -120,7 +120,7 @@ source_custom_prefix:
   - source_custom_prefix.sh
 source_export_path_disabled:
   envs:
-  - ubuntu-24.04
+  - ubuntu-stable
   modes:
   - devcontainer
   options:
@@ -133,7 +133,7 @@ source_export_path_disabled:
   - source_export_path_disabled.sh
 source_no_flags_perl:
   envs:
-  - ubuntu-24.04
+  - ubuntu-stable
   modes:
   - devcontainer
   options:
@@ -144,7 +144,7 @@ source_no_flags_perl:
   - source_no_flags_perl.sh
 if_exists_skip:
   envs:
-  - ubuntu-24.04+git
+  - ubuntu-stable+git
   modes:
   - devcontainer
   options:
@@ -153,7 +153,7 @@ if_exists_skip:
   - if_exists_skip.sh
 if_exists_reinstall_source:
   envs:
-  - ubuntu-24.04+git
+  - ubuntu-stable+git
   modes:
   - devcontainer
   options:
@@ -166,7 +166,7 @@ if_exists_reinstall_source:
   - if_exists_reinstall_source.sh
 if_exists_update_package:
   envs:
-  - ubuntu-24.04+git
+  - ubuntu-stable+git
   modes:
   - devcontainer
   options:
@@ -177,7 +177,7 @@ if_exists_update_package:
   - if_exists_update_package.sh
 if_exists_fail:
   envs:
-  - ubuntu-24.04
+  - ubuntu-stable
   modes:
   - devcontainer
   options:
@@ -187,7 +187,7 @@ if_exists_fail:
 if_exists_fail_preinstalled:
   expect_install_failure: true
   envs:
-  - ubuntu-24.04+git
+  - ubuntu-stable+git
   modes:
   - standalone
   options:
@@ -199,7 +199,7 @@ if_exists_fail_preinstalled:
 source_build_network_isolated:
   expect_install_failure: true
   envs:
-  - ubuntu-24.04
+  - ubuntu-stable
   modes:
   - standalone
   standalone:
@@ -212,7 +212,7 @@ source_build_network_isolated:
     version: latest
 source_custom_prefix_nonroot:
   envs:
-  - ubuntu-24.04+build-essential+git-dev-libs+vscode
+  - ubuntu-stable+build-essential+git-dev-libs+vscode
   modes:
   - standalone
   setup: |
@@ -227,7 +227,7 @@ source_custom_prefix_nonroot:
 invalid_if_exists:
   expect_install_failure: true
   envs:
-  - ubuntu-24.04
+  - ubuntu-stable
   modes:
   - standalone
   standalone:
@@ -239,7 +239,7 @@ invalid_if_exists:
 invalid_method:
   expect_install_failure: true
   envs:
-  - ubuntu-24.04
+  - ubuntu-stable
   modes:
   - standalone
   standalone:
@@ -251,7 +251,7 @@ invalid_method:
 source_build_nonexistent_version:
   expect_install_failure: true
   envs:
-  - ubuntu-24.04
+  - ubuntu-stable
   modes:
   - standalone
   standalone:
@@ -263,7 +263,7 @@ source_build_nonexistent_version:
     version: 0.0.0
 macos_package_default:
   envs:
-  - macos-15+brew
+  - macos-current+brew
   # Orchestrator runs install.sh with no CLI args; options are delivered as env
   # vars (see docs user-guide/options.md). if_exists must be skip so the install
   # exits before default_branch/safe_directory gitconfig writes.

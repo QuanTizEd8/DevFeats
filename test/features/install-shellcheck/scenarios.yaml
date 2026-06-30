@@ -1,6 +1,6 @@
 default:
   envs:
-  - ubuntu-24.04
+  - ubuntu-stable
   modes:
   - devcontainer
   - standalone
@@ -8,7 +8,7 @@ default:
   - default
 binary_custom_prefix:
   envs:
-  - ubuntu-24.04
+  - ubuntu-stable
   modes:
   - devcontainer
   - standalone
@@ -20,7 +20,7 @@ binary_custom_prefix:
   - binary_custom_prefix
 package_default:
   envs:
-  - debian-12
+  - debian-stable
   modes:
   - devcontainer
   - standalone
@@ -31,7 +31,7 @@ package_default:
 if_exists_fail:
   expect_install_failure: true
   envs:
-  - debian-12
+  - debian-stable
   modes:
   - standalone
   setup: 'printf ''#!/usr/bin/env bash\nif [[ "${1-}" == "--version" ]]; then printf
@@ -50,7 +50,7 @@ if_exists_fail:
     skip_install: false
 installer_dir:
   envs:
-  - ubuntu-24.04
+  - ubuntu-stable
   modes:
   - devcontainer
   - standalone
