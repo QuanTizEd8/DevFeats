@@ -22,7 +22,7 @@ from proman.config import load as load_config
 from proman.feature_env import resolved_env_vars
 
 from .checks import install_failure_patterns
-from .codegen import generate_tests
+from .codegen import _render_group
 from .environments import docker_buildkit_env, resolve
 from .environments import load as load_envs
 from .feature_logs import (
@@ -324,6 +324,7 @@ def _run_devcontainer(
                 scenarios_path=feat / str(cfg["filename.feature_scenarios"]),
                 envs_path=cfg.absolute_path("path.test_environments"),
                 out_dir=tmpdir,
+                checks_data=checks_data,
             )
 
             scenarios_json_path = test_out_dir / "scenarios.json"
@@ -464,7 +465,12 @@ def _run_standalone(
         )
         for ts in test_scripts:
             ts_name = f"{ts}.sh"
-            ts_path = f"/repo/test/features/{feature}/tests/{ts_name}"
+            ts_path = f"/tmp/{ts_name}"  # noqa: S108 — path is inside the container
+            # Render the test script inline so no tests/ dir is needed on disk.
+            content = _render_group(ts, checks_data[ts])
+            sentinel = f"DEVFEATS_END_{ts.upper().replace('-', '_').replace('.', '_')}"
+            heredoc = f"cat > {ts_path} << '{sentinel}'\n{content}{sentinel}"
+            test_cmd_lines.append(f"{heredoc}\nchmod +x {ts_path}")
             if user:
                 test_cmd_lines.append(
                     f"su {user} -c '"
@@ -520,6 +526,10 @@ def _run_standalone(
             container_name,
             "--log-bind-dir",
             str(log_bind_dir),
+            "--bind",
+            f"{cfg.absolute_path('path.src') / feature}:/repo/src/{feature}:ro",
+            "--bind",
+            f"{cfg.root_path / 'test' / 'support'}:/repo/test/support:ro",
             "--run",
             run_cmd,
         ]
@@ -542,7 +552,6 @@ def _run_macos(
     checks_data: dict,
 ) -> bool:
     cfg = load_config()
-    feat = cfg.absolute_path("path.test_features") / feature
 
     shim_dir = tempfile.mkdtemp()
     try:
@@ -663,9 +672,13 @@ def _run_macos(
 
                 for ts in test_scripts:
                     ts_name = f"{ts}.sh"
-                    ts_path = str(
-                        feat / str(cfg["filename.feature_tests"]) / ts_name,
+                    # Render script on-the-fly into shim_dir (no tests/ dir needed).
+                    tmp_script = Path(shim_dir) / ts_name
+                    tmp_script.write_text(
+                        _render_group(ts, checks_data[ts]), encoding="utf-8"
                     )
+                    tmp_script.chmod(0o755)
+                    ts_path = str(tmp_script)
                     test_env = {
                         **run_env,
                         "PATH": f"{shim_dir}:{run_env['PATH']}",
@@ -736,23 +749,11 @@ def main() -> None:
     cfg = load_config()
     os.environ.setdefault("REPO_ROOT", str(cfg.root_path))
 
-    feat = cfg.absolute_path("path.test_features") / args.feature
-    tests_dir = feat / str(cfg["filename.feature_tests"])
-
     try:
         loader = FeatureTestLoader()
         ft = loader.load(args.feature)
     except (FeatureTestError, FileNotFoundError) as exc:
         print(f"⛔ {exc}", file=sys.stderr)
-        sys.exit(1)
-
-    generate_tests(ft.checks, tests_dir)
-
-    if not tests_dir.is_dir():
-        print(
-            f"⛔ tests/ directory not found for feature {args.feature}: {tests_dir}",
-            file=sys.stderr,
-        )
         sys.exit(1)
 
     envs = load_envs(cfg.absolute_path("path.test_environments"))

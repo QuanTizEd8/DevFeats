@@ -2,14 +2,9 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from pathlib import Path
-
 import pytest
 import yaml
-from proman.test.codegen import _render_group, generate_tests
+from proman.test.codegen import _render_group
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -344,63 +339,6 @@ class TestGroupFields:
         _, g = _load_group("t:\n  checks:\n    - title: t\n      cmd: true\n")
         out = _render_group("t", g)
         assert "_test_failure_diagnostics" not in out
-
-
-# ---------------------------------------------------------------------------
-# generate_tests() — file I/O
-# ---------------------------------------------------------------------------
-
-
-class TestGenerateTests:
-    """Tests for the generate_tests() file I/O entry point."""
-
-    def test_writes_sh_files(self, tmp_path: Path) -> None:
-        """.sh files are written to the output directory."""
-        checks = yaml.safe_load(
-            "default_install:\n"
-            "  description: 'Verify yq.'\n"
-            "  checks:\n"
-            "    - title: 'yq available'\n"
-            "      cmd: 'command -v yq'\n",
-        )
-        out_dir = tmp_path / "tests"
-        generate_tests(checks, out_dir)
-        assert (out_dir / "default_install.sh").exists()
-
-    def test_generated_content_is_valid(self, tmp_path: Path) -> None:
-        """Generated .sh file has valid structure and contains the check call."""
-        checks = yaml.safe_load(
-            "my_test:\n  checks:\n    - title: 'pass'\n      cmd: 'true'\n",
-        )
-        out_dir = tmp_path / "tests"
-        generate_tests(checks, out_dir)
-        content = (out_dir / "my_test.sh").read_text(encoding="utf-8")
-        assert content.startswith("#!/usr/bin/env bash\n")
-        assert 'check "pass" true\n' in content
-        assert content.endswith("\nreportResults\n")
-
-    def test_file_is_executable(self, tmp_path: Path) -> None:
-        """Generated .sh files have the executable bit set."""
-        checks = yaml.safe_load(
-            "t:\n  checks:\n    - title: t\n      cmd: true\n",
-        )
-        out_dir = tmp_path / "tests"
-        generate_tests(checks, out_dir)
-        sh = out_dir / "t.sh"
-        assert sh.stat().st_mode & 0o111, "generated .sh should be executable"
-
-    def test_multiple_test_ids_each_get_own_file(self, tmp_path: Path) -> None:
-        """Each test group in checks.yaml gets its own .sh file."""
-        checks = yaml.safe_load(
-            "default_install:\n"
-            "  checks:\n    - title: a\n      cmd: true\n"
-            "shell_completion_zsh:\n"
-            "  checks:\n    - title: b\n      cmd: true\n",
-        )
-        out_dir = tmp_path / "tests"
-        generate_tests(checks, out_dir)
-        assert (out_dir / "default_install.sh").exists()
-        assert (out_dir / "shell_completion_zsh.sh").exists()
 
 
 # ---------------------------------------------------------------------------

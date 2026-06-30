@@ -130,9 +130,9 @@ work:
 
 [
   group('sync'),
-  doc('Run all sync tasks: sync-src, sync-tests.')
+  doc('Run all sync tasks (sync-src).')
 ]
-sync: sync-src sync-tests
+sync: sync-src
 
 
 [
@@ -149,22 +149,6 @@ sync-src:
 ]
 sync-src-check:
     pixi run sync-src-check
-
-
-[
-  group('sync'),
-  doc('Regenerate git-ignored tests/*.sh from checks.yaml; pass a feature name to limit scope.')
-]
-sync-tests feat="":
-    pixi run --environment test sync-tests {{ feat }}
-
-
-[
-  group('sync'),
-  doc('Exit non-zero if any generated test .sh is stale; pass a feature name to limit scope.')
-]
-sync-tests-check feat="":
-    pixi run --environment test sync-tests-check {{ feat }}
 
 
 [
@@ -221,26 +205,10 @@ build-docs-pkg: build-docs
 
 [
   group('test'),
-  doc('Run all bats unit tests for lib/ (git submodule init for test/lib/bats required).')
+  doc('Run lib/ unit tests in a container env (default: ubuntu-current). Args forwarded to run-unit.sh e.g. just test-lib ubuntu-stable --module ospkg.')
 ]
-test-lib:
-    just capture test-lib -- bash .dev/scripts/test/run-unit.sh
-
-
-[
-  group('test'),
-  doc('Run unit tests for one lib module e.g. just test-lib-mod ospkg.')
-]
-test-lib-mod module:
-    just capture test-lib-mod -- bash .dev/scripts/test/run-unit.sh --module {{module}}
-
-
-[
-  group('test'),
-  doc('Run lib/ unit tests in one container environment e.g. just test-lib-env alpine-3.20.')
-]
-test-lib-env env *args:
-    just capture test-lib-env -- pixi run --environment test test-lib-env {{env}} {{args}}
+test-lib env="ubuntu-current" *args:
+    just capture test-lib -- pixi run --environment test test-lib-env {{env}} {{args}}
 
 
 [

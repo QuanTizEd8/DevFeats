@@ -5,13 +5,13 @@ from __future__ import annotations
 import argparse
 import json
 import shlex
-import shutil
 import sys
 from pathlib import Path
 
 from proman.config import load as load_config
 from proman.feature_env import resolved_env_vars
 
+from .codegen import _render_group
 from .environments import _DOCKER_GITHUB_ARG_LINES, _collect_layers, is_macos
 from .environments import load as load_envs
 from .scenarios import (
@@ -52,11 +52,10 @@ def _posix_testlib_block() -> str:
     )
 
 
-def _copy_test_script(
-    src: Path, dst: Path, feature: str, *, inject_testlib: bool = False
+def _render_test_script(
+    content: str, dst: Path, feature: str, *, inject_testlib: bool = False
 ) -> None:
-    """Copy a test script, prepending metadata-derived env var definitions."""
-    content = src.read_text(encoding="utf-8")
+    """Write a rendered test script to dst, prepending metadata-derived env vars."""
     if inject_testlib:
         # Source our POSIX-compatible lib by absolute path so PATH is not
         # modified (modifying PATH breaks tests that inspect PATH ordering).
@@ -74,7 +73,7 @@ def _copy_test_script(
         vars_block = _posix_testlib_block() + vars_block
     lines.insert(insert_at, vars_block)
     dst.write_text("".join(lines), encoding="utf-8")
-    shutil.copymode(src, dst)
+    dst.chmod(dst.stat().st_mode | 0o111)
 
 
 def _inject_github_token(scenarios: dict) -> None:
@@ -151,6 +150,8 @@ def generate(
     scenarios_path: Path | str,
     envs_path: Path | str,
     out_dir: Path | str,
+    *,
+    checks_data: dict,
 ) -> None:
     """Generate scenarios.json and Dockerfiles for all devcontainer test scenarios."""
     scenarios_path = Path(scenarios_path)
@@ -165,8 +166,6 @@ def generate(
     scenarios_dir = out_dir / "test" / feature
     scenarios_dir.mkdir(parents=True, exist_ok=True)
 
-    feat = cfg.absolute_path("path.test_features") / feature
-    tests_src_dir = feat / str(cfg["filename.feature_tests"])
     output: dict = {}
     for name, sc in iter_merged_scenarios(defaults, scenarios):
         modes: list[str] = sc.get("modes", list(DEFAULT_MODES))
@@ -194,10 +193,10 @@ def generate(
 
             tests = scenario.get("tests", [])
             if tests:
-                ts0 = tests[0]
-                ts0_name = f"{ts0}.sh"
-                _copy_test_script(
-                    tests_src_dir / ts0_name,
+                test_id = tests[0]
+                content = _render_group(test_id, checks_data[test_id])
+                _render_test_script(
+                    content,
                     scenarios_dir / f"{key}.sh",
                     feature,
                     inject_testlib=True,

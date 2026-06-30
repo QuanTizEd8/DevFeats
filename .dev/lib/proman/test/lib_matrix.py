@@ -41,6 +41,12 @@ def _run_env(
         image,
         "--name",
         f"test-unit-{name}",
+        "--bind",
+        f"{root}/lib:/repo/lib:ro",
+        "--bind",
+        f"{root}/test/lib:/repo/test/lib:ro",
+        "--bind",
+        f"{root}/.dev/scripts/test:/repo/.dev/scripts/test:ro",
     ]
     for k, v in env_vars.items():
         cmd += ["--env", f"{k}={v}"]
