@@ -24,7 +24,7 @@ fedora-current:
   image: fedora:44
 
 rockylinux-current:
-  image: rockylinux:10
+  image: rockylinux/rockylinux:10
 
 opensuse-leap-current:
   image: opensuse/leap:16.0
