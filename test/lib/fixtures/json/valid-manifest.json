@@ -4,7 +4,7 @@
     "git",
     {
       "name": "wget",
-      "when": {"pm": "apt"}
+      "when": {"plat.pm": "apt"}
     }
   ],
   "apt": {

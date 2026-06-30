@@ -6,7 +6,7 @@
   "additionalProperties": false,
   "properties": {
     "version": {
-      "description": "The version of the Feature. Follows the semanatic versioning (semver) specification.",
+      "description": "The version of the Feature. Follows the semantic versioning (semver) specification.",
       "type": "string"
     },
     "name": {
@@ -55,7 +55,7 @@
       "type": "object"
     },
     "_options": {
-      "description": "Internal-use-only metadata for auto-generated options. The generator uses these metadata to dynamically generate the corresponding options in the `options` field and the associated installation script code.",
+      "description": "Internal-use-only metadata for auto-generated options. The generator uses this metadata to dynamically generate the corresponding options in the `options` field and the associated installation script code.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -232,7 +232,7 @@
                 },
                 "when": {
                   "$ref": "#/$defs/WhenSpec",
-                  "description": "Runtime OS context conditions required for the `package` method to be considered feasible by `__resolve_auto_method__`. Same semantics as `binary.when`. Use `plat.pm` key to restrict to specific package manager families (e.g. `{plat.pm: [apt, dnf]}`); omit to allow all PM families."
+                  "description": "Runtime OS context conditions required for the `package` method to be considered feasible by `__resolve_auto_method__`. Same semantics as `binary.when`. Use `plat.pm` to restrict to specific package manager families (e.g. `plat.pm: [apt, dnf]`); omit to allow all PM families."
                 }
               }
             },
@@ -247,7 +247,7 @@
                 },
                 "when": {
                   "$ref": "#/$defs/WhenSpec",
-                  "description": "Runtime OS context conditions required for the `upstream-package` method to be considered feasible by `__resolve_auto_method__`. Same semantics as `binary.when`. Use `plat.pm` key to restrict to specific package manager families; use `os.id` to restrict to specific distros (e.g. `{os.id: ubuntu}` for Ubuntu-only vendor repos)."
+                  "description": "Runtime OS context conditions required for the `upstream-package` method to be considered feasible by `__resolve_auto_method__`. Same semantics as `binary.when`. Use `plat.pm` to restrict to specific package manager families; use `os.id` to restrict to specific distros (e.g. `os.id: ubuntu` for Ubuntu-only vendor repos)."
                 }
               }
             },
@@ -487,7 +487,7 @@
                 "properties": {
                   "when": {
                     "$ref": "#/$defs/WhenSpec",
-                    "description": "Condition object. All key=value pairs must match (AND logic). Supports platform and semver keys via feature context at prefix resolution time."
+                    "description": "WhenSpec evaluated at prefix resolution time. Qualified keys (`os.*`, `plat.*`, `feat.*`) only; operator objects on `feat.version` and other version-like fields use semver ordering."
                   },
                   "default": {
                     "type": "string",
@@ -666,16 +666,16 @@
           "description": "List of supported platforms. If omitted, the Feature is assumed to support all platforms. Otherwise, every platform not matching at least one entry in this list is considered unsupported.",
           "type": "array",
           "items": {
-            "description": "A platform match specification.",
-            "$ref": "#/$defs/MatchSpec"
+            "description": "A WhenSpec condition (AND object or OR array of AND objects). The platform is supported when any entry matches.",
+            "$ref": "#/$defs/WhenSpec"
           }
         },
         "root": {
-          "description": "Whether the Feature requires root permissions to install. This can be either a boolean value (unconditional) or a list of platform match specifications that determine when root is required.",
+          "description": "Whether the Feature requires root permissions to install. This can be either a boolean value (unconditional) or a list of WhenSpec conditions that determine when root is required.",
           "default": false,
           "oneOf": [
             {"type": "boolean"},
-            {"type": "array", "items": {"$ref": "#/$defs/MatchSpec"}}
+            {"type": "array", "items": {"$ref": "#/$defs/WhenSpec"}}
           ]
         }
       }
@@ -734,7 +734,7 @@
       "type": "object"
     },
     "dependsOn": {
-      "description": "An object of Feature dependencies that must be satisified before this Feature is installed. Elements follow the same semantics of the features object in devcontainer.json",
+      "description": "An object of Feature dependencies that must be satisfied before this Feature is installed. Elements follow the same semantics of the features object in devcontainer.json",
       "additionalProperties": true,
       "type": "object"
     },
@@ -1793,81 +1793,32 @@
         }
       }
     },
-    "WhenOperatorObject": {
-      "description": "Per-key operator constraints (ANDed). Arrays only on eq/ne.",
-      "type": "object",
-      "minProperties": 1,
-      "properties": {
-        "eq": {
-          "oneOf": [
-            {"type": "string", "minLength": 1},
-            {
-              "type": "array",
-              "items": {"type": "string", "minLength": 1},
-              "minItems": 1
-            }
-          ]
-        },
-        "ne": {
-          "oneOf": [
-            {"type": "string", "minLength": 1},
-            {
-              "type": "array",
-              "items": {"type": "string", "minLength": 1},
-              "minItems": 1
-            }
-          ]
-        },
-        "lt": {"type": "string", "minLength": 1},
-        "lte": {"type": "string", "minLength": 1},
-        "gt": {"type": "string", "minLength": 1},
-        "gte": {"type": "string", "minLength": 1}
-      },
-      "additionalProperties": false
-    },
-    "WhenConditionValue": {
-      "description": "Scalar/array shorthand for eq, or explicit operator object.",
-      "oneOf": [
-        {"type": "string", "minLength": 1},
-        {
-          "type": "array",
-          "items": {"type": "string", "minLength": 1},
-          "minItems": 1
-        },
-        {"$ref": "#/$defs/WhenOperatorObject"}
-      ]
-    },
-    "WhenConditionObject": {
-      "description": "AND group of qualified context keys.",
-      "type": "object",
-      "minProperties": 1,
-      "propertyNames": {"pattern": "^(os|plat|feat)\\.[a-z0-9_]+$"},
-      "additionalProperties": {"$ref": "#/$defs/WhenConditionValue"}
-    },
     "WhenSpec": {
-      "description": "Runtime when block evaluated by ctx__match_when (YAML at build time).",
-      "oneOf": [
-        {"$ref": "#/$defs/WhenConditionObject"},
-        {
-          "type": "array",
-          "items": {"$ref": "#/$defs/WhenConditionObject"},
-          "minItems": 1
-        }
-      ]
-    },
-    "MatchSpec": {
-      "$ref": "#/$defs/WhenSpec"
+      "description": "Unified runtime/platform condition block (AND object or OR array of AND objects). Canonical definition: install-os-pkg/manifest.schema.json#/$defs/WhenSpec.",
+      "$ref": "install-os-pkg/manifest.schema.json#/$defs/WhenSpec"
     },
     "ContextKeyRegistry": {
-      "description": "Registry of keys populated in ctx at runtime (base keys only; case flavors are pattern-expand-only).",
+      "description": "Registry of keys populated in ctx at runtime (base keys only; case flavors such as `:lower` are valid only in `{token}` pattern expansion, not in WhenSpec keys). Used for documentation and schema parity tests; not validated against feature metadata at load time.",
       "type": "array",
       "items": {
         "type": "object",
+        "additionalProperties": false,
         "required": ["namespace", "key"],
         "properties": {
-          "namespace": {"enum": ["os", "plat", "feat"]},
-          "key": {"type": "string", "pattern": "^[a-z0-9_]+$"},
-          "matchMode": {"type": "string", "enum": ["ci_string", "token_list"]}
+          "namespace": {
+            "description": "Context namespace prefix for qualified when keys and pattern tokens.",
+            "enum": ["os", "plat", "feat"]
+          },
+          "key": {
+            "description": "Base key name within the namespace (no flavor suffix).",
+            "type": "string",
+            "pattern": "^[a-z0-9_]+$"
+          },
+          "matchMode": {
+            "description": "How when/runtime matching compares values: case-insensitive string equality, or whitespace-separated token membership (`os.id_like`).",
+            "type": "string",
+            "enum": ["ci_string", "token_list"]
+          }
         }
       }
     }

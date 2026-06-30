@@ -6,9 +6,10 @@ metadata template filler (metadata.py / metadata.shared.yaml).
 Serialization emits **YAML** blobs consumed by ``ctx__match_when`` / ``ctx__match_spec``
 in ``lib/ctx.bash`` (evaluated via ``ctx-match.jq``).
 
-When keys are validated by ``features/metadata.schema.json`` (``WhenSpec`` /
-``WhenConditionObject.propertyNames``); this module only serializes already-valid
-metadata.
+When keys are validated by ``features/install-os-pkg/manifest.schema.json``
+(``WhenSpec``/``WhenConditionObject.propertyNames``),
+referenced from ``features/metadata.schema.json``;
+this module only serializes already-valid metadata.
 """
 
 from __future__ import annotations

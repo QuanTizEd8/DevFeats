@@ -116,3 +116,7 @@
 - namespace: feat
   key: prefix
   matchMode: ci_string
+
+- namespace: feat
+  key: pm_version
+  matchMode: ci_string

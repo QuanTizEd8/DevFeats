@@ -108,6 +108,18 @@ def _write_test_repo(
         schema_src.read_text(encoding="utf-8"),
         encoding="utf-8",
     )
+    manifest_src = (
+        Path(__file__).resolve().parents[2]
+        / "features"
+        / "install-os-pkg"
+        / "manifest.schema.json"
+    )
+    manifest_dest = features / "install-os-pkg"
+    manifest_dest.mkdir(parents=True)
+    (manifest_dest / "manifest.schema.json").write_text(
+        manifest_src.read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
 
     if feature_metadata is not None:
         feat_dir = features / "test-feature"
@@ -368,7 +380,7 @@ def _when_spec_errors(when: object) -> list:
 
 
 def test_schema_when_rejects_deprecated_version_lte() -> None:
-    """Schema rejects legacy tool-version keys in favor of semver_*."""
+    """Schema rejects unqualified legacy when keys such as version_lte."""
     errors = _when_spec_errors({"version_lte": "1.0.0"})
     assert errors
     assert any("version_lte" in e.message for e in errors)

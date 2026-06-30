@@ -6,13 +6,26 @@ import json
 from pathlib import Path
 
 import yaml
+from jsonschema import Draft202012Validator
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
-SCHEMA_PATH = Path(__file__).resolve().parents[2] / "features" / "metadata.schema.json"
+METADATA_SCHEMA_PATH = (
+    Path(__file__).resolve().parents[2] / "features" / "metadata.schema.json"
+)
+MANIFEST_SCHEMA_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "features"
+    / "install-os-pkg"
+    / "manifest.schema.json"
+)
 
 
-def _load_schema() -> dict:
-    return json.loads(SCHEMA_PATH.read_text())
+def _load_metadata_schema() -> dict:
+    return json.loads(METADATA_SCHEMA_PATH.read_text())
+
+
+def _load_manifest_schema() -> dict:
+    return json.loads(MANIFEST_SCHEMA_PATH.read_text())
 
 
 def _registry_fixture() -> list[dict]:
@@ -21,21 +34,37 @@ def _registry_fixture() -> list[dict]:
 
 def test_context_registry_def_exists() -> None:
     """Verify ContextKeyRegistry is defined in the schema."""
-    schema = _load_schema()
+    schema = _load_metadata_schema()
     assert "ContextKeyRegistry" in schema["$defs"]
 
 
 def test_when_spec_uses_qualified_keys() -> None:
     """Verify WhenConditionObject propertyNames pattern requires qualified keys."""
-    schema = _load_schema()
+    schema = _load_manifest_schema()
     when_obj = schema["$defs"]["WhenConditionObject"]
     pattern = when_obj["propertyNames"]["pattern"]
     assert "os|plat|feat" in pattern
 
 
+def test_manifest_schema_is_valid() -> None:
+    """Verify manifest.schema.json is a valid Draft 2020-12 schema document."""
+    schema = _load_manifest_schema()
+    Draft202012Validator.check_schema(schema)
+
+
+def test_manifest_when_rejects_legacy_flat_key() -> None:
+    """Verify manifest WhenSpec rejects unqualified legacy keys such as pm."""
+    schema = _load_manifest_schema()
+    validator = Draft202012Validator(schema)
+    errors = list(
+        validator.iter_errors({"packages": [{"name": "git", "when": {"pm": "apt"}}]})
+    )
+    assert errors
+
+
 def test_when_spec_rejects_legacy_flat_keys() -> None:
     """Verify WhenConditionObject rejects unqualified legacy key names."""
-    schema = _load_schema()
+    schema = _load_manifest_schema()
     when_obj = schema["$defs"]["WhenConditionObject"]
     pattern = when_obj["propertyNames"]["pattern"]
     for legacy in ("arch", "pm", "id", "semver_lte", "kernel"):
@@ -44,7 +73,7 @@ def test_when_spec_rejects_legacy_flat_keys() -> None:
 
 def test_registry_fixture_entries_match_schema_shape() -> None:
     """Verify every fixture entry satisfies the ContextKeyRegistry item schema."""
-    schema = _load_schema()
+    schema = _load_metadata_schema()
     item_schema = schema["$defs"]["ContextKeyRegistry"]["items"]
     required = set(item_schema["required"])
     for entry in _registry_fixture():
@@ -74,5 +103,6 @@ def test_registry_includes_core_plat_and_feat_keys() -> None:
         ("feat", "version"),
         ("feat", "method"),
         ("feat", "prefix"),
+        ("feat", "pm_version"),
     ):
         assert (ns, key) in keys

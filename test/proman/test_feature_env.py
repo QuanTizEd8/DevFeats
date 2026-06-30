@@ -80,6 +80,18 @@ def _write_test_repo(tmp_path: Path) -> Path:
         schema_src.read_text(encoding="utf-8"),
         encoding="utf-8",
     )
+    manifest_src = (
+        Path(__file__).resolve().parents[2]
+        / "features"
+        / "install-os-pkg"
+        / "manifest.schema.json"
+    )
+    manifest_dest = features / "install-os-pkg"
+    manifest_dest.mkdir(parents=True)
+    (manifest_dest / "manifest.schema.json").write_text(
+        manifest_src.read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
 
     feat_dir = features / "install-foo"
     feat_dir.mkdir()

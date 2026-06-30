@@ -4,8 +4,9 @@
   "description": "Declarative YAML/JSON manifest for cross-platform OS package installation. Replaces the text-based manifest DSL. Consumed by ospkg__run() in lib/ospkg.bash.\n\nExecution order: prescripts → PM-block setup (keys, repos, taps, ppas, copr, modules) → package-manager update → packages → PM-block scripts → scripts → repo cleanup → cache clean.\n\nInline keys/repos/scripts on package entries and groups are collected and executed in the same batch order — structural co-location is for authoring convenience, not execution sequencing.",
   "oneOf": [
     {
-      "description": "Shorthand: a bare array is treated as a top-level packages list.",
+      "description": "Shorthand: a bare non-empty array is treated as a top-level packages list.",
       "type": "array",
+      "minItems": 1,
       "items": {
         "$ref": "#/$defs/packageEntry"
       }
@@ -29,7 +30,7 @@
           "description": "Optional manifest description for documentation, logging, and debugging purposes."
         },
         "when": {
-          "$ref": "#/$defs/whenClause",
+          "$ref": "#/$defs/WhenSpec",
           "description": "Top-level condition. If it does not match the active OS context, the entire manifest is skipped."
         },
         "packages": {
@@ -102,10 +103,12 @@
                 "properties": {
                   "name": {
                     "type": "string",
-                    "minLength": 1
+                    "minLength": 1,
+                    "description": "Package group name in the active PM's group/pattern syntax."
                   },
                   "when": {
-                    "$ref": "#/$defs/whenClause"
+                    "$ref": "#/$defs/WhenSpec",
+                    "description": "Install this group only when the condition matches."
                   }
                 }
               }
@@ -151,73 +154,83 @@
         }
       }
     },
-    "conditionValue": {
-      "description": "A single value or array of values. Arrays are OR'd: the condition matches if any value matches.",
-      "oneOf": [
-        {
+    "WhenOperatorObject": {
+      "description": "Explicit per-key operators. All present operators are ANDed. Use on version-like fields (`feat.version`, `os.version_id`, …) for semver ordering; ordering operators are ignored for `os.id_like`. Array values are allowed only on `eq` and `ne` (OR within that operator).",
+      "type": "object",
+      "minProperties": 1,
+      "properties": {
+        "eq": {
+          "description": "Equal to (case-insensitive string match, or token membership for `os.id_like`).",
+          "oneOf": [
+            {"type": "string", "minLength": 1},
+            {
+              "type": "array",
+              "items": {"type": "string", "minLength": 1},
+              "minItems": 1
+            }
+          ]
+        },
+        "ne": {
+          "description": "Not equal to (negation of `eq` semantics).",
+          "oneOf": [
+            {"type": "string", "minLength": 1},
+            {
+              "type": "array",
+              "items": {"type": "string", "minLength": 1},
+              "minItems": 1
+            }
+          ]
+        },
+        "lt": {
+          "description": "Semver less-than.",
           "type": "string",
           "minLength": 1
         },
-        {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          },
-          "minItems": 1
-        }
-      ]
-    },
-    "conditionObject": {
-      "type": "object",
-      "description": "A set of conditions AND'd together. Each key is a condition name; its value is a string or array of strings (OR'd). All keys must match for the condition object to match. Keys listed under `properties` are well-known; any other string key (matching a field from /etc/os-release) must still use a conditionValue shape.",
-      "minProperties": 1,
-      "properties": {
-        "pm": {
-          "$ref": "#/$defs/conditionValue",
-          "description": "Package manager: apt, apk, brew, dnf, yum, pacman, zypper."
+        "lte": {
+          "description": "Semver less-than or equal.",
+          "type": "string",
+          "minLength": 1
         },
-        "arch": {
-          "$ref": "#/$defs/conditionValue",
-          "description": "Normalized CPU architecture: amd64, arm64, armv7, i386, ppc64le, s390x, riscv64, loong64. Raw uname -m values (x86_64, aarch64, armv7l) are normalized automatically."
+        "gt": {
+          "description": "Semver greater-than.",
+          "type": "string",
+          "minLength": 1
         },
-        "kernel": {
-          "$ref": "#/$defs/conditionValue",
-          "description": "OS kernel: linux, darwin."
-        },
-        "id": {
-          "$ref": "#/$defs/conditionValue",
-          "description": "OS ID from /etc/os-release (or 'macos' on macOS): ubuntu, debian, alpine, fedora, arch, rhel, opensuse-leap, macos, etc."
-        },
-        "id_like": {
-          "$ref": "#/$defs/conditionValue",
-          "description": "OS ID_LIKE from /etc/os-release (or 'macos' on macOS): debian, rhel, arch, suse, etc."
-        },
-        "version_id": {
-          "$ref": "#/$defs/conditionValue",
-          "description": "OS VERSION_ID from /etc/os-release: 22.04, 39, 3.19, 15.6, etc."
-        },
-        "version_codename": {
-          "$ref": "#/$defs/conditionValue",
-          "description": "OS VERSION_CODENAME from /etc/os-release: bookworm, noble, jammy, focal, etc."
+        "gte": {
+          "description": "Semver greater-than or equal.",
+          "type": "string",
+          "minLength": 1
         }
       },
-      "additionalProperties": {
-        "$ref": "#/$defs/conditionValue"
-      }
+      "additionalProperties": false
     },
-    "whenClause": {
-      "description": "Condition filter. Supports two forms:\n1. Condition object (AND of its keys). Example: { pm: apt, arch: amd64 }\n2. Array of condition objects (OR of compounds). Example: [{ pm: apt, id: ubuntu }, { pm: dnf, id: fedora }]\n\nAvailable fields: pm, arch, kernel, id, id_like, version_id, version_codename, and any other key from /etc/os-release.",
+    "WhenConditionValue": {
+      "description": "Condition value for one qualified key. A string or non-empty string array is shorthand for `eq` (array = OR). An operator object uses explicit `eq`/`ne`/`lt`/`lte`/`gt`/`gte` constraints.",
       "oneOf": [
-        {
-          "$ref": "#/$defs/conditionObject"
-        },
+        {"type": "string", "minLength": 1},
         {
           "type": "array",
-          "description": "OR of compound conditions. The entry matches if any condition object matches.",
-          "items": {
-            "$ref": "#/$defs/conditionObject"
-          },
+          "items": {"type": "string", "minLength": 1},
+          "minItems": 1
+        },
+        {"$ref": "#/$defs/WhenOperatorObject"}
+      ]
+    },
+    "WhenConditionObject": {
+      "description": "AND group: every key must match. Keys must be qualified (`os.id`, `plat.pm`, `feat.version`, …) and match `^(os|plat|feat)\\.[a-z0-9_]+$` (no case-flavor suffixes). Common keys: `os.*` from /etc/os-release, `plat.*` from host detection (`plat.pm`, `plat.kernel`, `plat.machine_release`, …), `feat.*` from install context (`feat.version`, `feat.method`, `feat.pm_version`, …).",
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"pattern": "^(os|plat|feat)\\.[a-z0-9_]+$"},
+      "additionalProperties": {"$ref": "#/$defs/WhenConditionValue"}
+    },
+    "WhenSpec": {
+      "description": "Runtime when block evaluated by `ctx__match_when` / `ctx-match.jq` (`when_matches`, `item_when_matches`). Either one AND object, or a non-empty OR array of AND objects (any group matching is sufficient). Evaluated against merged OS/platform context plus optional `feat.*` keys supplied at install time.",
+      "oneOf": [
+        {"$ref": "#/$defs/WhenConditionObject"},
+        {
+          "description": "OR list: at least one AND group must match.",
+          "type": "array",
+          "items": {"$ref": "#/$defs/WhenConditionObject"},
           "minItems": 1
         }
       ]
@@ -328,7 +341,7 @@
           "description": "Default package name, or a label when all target PMs have explicit overrides."
         },
         "when": {
-          "$ref": "#/$defs/whenClause",
+          "$ref": "#/$defs/WhenSpec",
           "description": "Condition filter. The package is skipped when the condition does not match."
         },
         "flags": {
@@ -337,7 +350,7 @@
         },
         "version": {
           "type": "string",
-          "description": "Version constraint in the active PM's syntax (e.g. '=1.2.3-1' for apt, '>=1.2' for brew)."
+          "description": "Version constraint in the active PM's syntax (e.g. '=1.2.3-1' for apt, '>=1.2' for brew). May contain `{feat.pm_version}` or other context tokens expanded before install when the manifest is generated from feature metadata."
         },
         "prescript": {
           "$ref": "#/$defs/scriptBlock",
@@ -391,7 +404,7 @@
           "description": "Human-readable label for log output. Not used for installation."
         },
         "when": {
-          "$ref": "#/$defs/whenClause",
+          "$ref": "#/$defs/WhenSpec",
           "description": "Condition filter applied to all packages in the group. Combined (AND'd) with any per-package 'when' conditions."
         },
         "flags": {
