@@ -51,21 +51,13 @@ __install_run_source_build() {
   fi
 
   # Parse NO_FLAGS: space/comma-separated keywords → NO_<FLAG>=YesPlease.
-  local _user_flags
+  local _user_flags _flag
   _user_flags="$(printf '%s' "${NO_FLAGS[*]}" | tr '[:lower:],' '[:upper:] ')"
-  local _flag
   for _flag in ${_user_flags}; do
-    case "${_flag}" in
-      PERL | PYTHON | TCLTK | GETTEXT)
-        case " ${_git_make_flags} " in
-          *" NO_${_flag}="*) ;;
-          *) _git_make_flags="${_git_make_flags} NO_${_flag}=YesPlease" ;;
-        esac
-        ;;
-      '') ;;
-      *)
-        logging__warn "no_flags: unknown keyword '${_flag}' — ignored"
-        ;;
+    [[ -n "${_flag}" ]] || continue
+    case " ${_git_make_flags} " in
+      *" NO_${_flag}="*) ;;
+      *) _git_make_flags="${_git_make_flags} NO_${_flag}=YesPlease" ;;
     esac
   done
 

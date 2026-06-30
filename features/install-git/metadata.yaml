@@ -46,6 +46,11 @@ options:
         Disable i18n/translation support; git output is English-only and the
         gettext/libintl build dependency is removed.
         On Alpine Linux gettext is always disabled regardless of this setting.
+    - value: rust
+      description: >-
+        Disable Rust components in the build (`NO_RUST=YesPlease`); Git 2.55+
+        enables Rust by default. Use when you prefer the C fallbacks and want to
+        skip the optional `cargo` build dependency.
   default_branch:
     type: string
     default: main
@@ -157,6 +162,9 @@ _dependencies:
           - name: libpcre2-posix0
             when:
               os.version_codename: [bionic, buster]
+          - name: cargo
+            when:
+              feat.version: {gte: "2.55"}
 
       brew:
         packages:
@@ -164,6 +172,9 @@ _dependencies:
           - openssl
           - pcre2
           - gettext
+          - name: rust
+            when:
+              feat.version: {gte: "2.55"}
 
       dnf:
         packages:
@@ -176,6 +187,9 @@ _dependencies:
           - pcre2-devel
           - perl-devel
           - zlib-devel
+          - name: cargo
+            when:
+              feat.version: {gte: "2.55"}
 
       apk:
         packages:
@@ -189,6 +203,9 @@ _dependencies:
           - pcre2-dev
           - perl-dev
           - zlib-dev
+          - name: cargo
+            when:
+              feat.version: {gte: "2.55"}
 
       zypper:
         packages:
@@ -200,6 +217,9 @@ _dependencies:
           - libopenssl-devel
           - libpcre2-devel
           - zlib-devel
+          - name: cargo
+            when:
+              feat.version: {gte: "2.55"}
 
       pacman:
         packages:
@@ -209,3 +229,6 @@ _dependencies:
           - expat
           - openssl
           - zlib
+          - name: rust
+            when:
+              feat.version: {gte: "2.55"}
