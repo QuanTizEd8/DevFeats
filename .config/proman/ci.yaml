@@ -51,6 +51,8 @@ triggers:
   validate:
     - "**/metadata.yaml"
     - "**/*.schema.json"
+    - "test/features/**/checks.yaml"
+    - "test/features/**/scenarios.yaml"
   unit_test:
     - "lib/*.sh"
     - "lib/*.bash"

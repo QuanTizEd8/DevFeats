@@ -1,0 +1,195 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "scenarios.schema.json",
+  "title": "Feature test scenarios",
+  "description": "Test matrix for a feature under test/features/<feature-id>/: environments, modes, options, and which generated test scripts to run.",
+  "type": "object",
+  "minProperties": 1,
+  "properties": {
+    "defaults": {
+      "description": "Per-feature defaults merged into every scenario (lowest precedence after test/features/defaults.shared.yaml).",
+      "allOf": [
+        {
+          "$ref": "#/$defs/scenario"
+        },
+        {
+          "not": {
+            "required": [
+              "expect_install_failure"
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "patternProperties": {
+    "^(?!defaults$)[a-z][a-z0-9_]*$": {
+      "description": "One named scenario in the feature test matrix.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/scenario"
+        },
+        {
+          "required": [
+            "tests"
+          ]
+        }
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "string_map": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "description": "Human-readable summary of what this scenario exercises.",
+          "type": "string"
+        },
+        "envs": {
+          "description": "Environment keys from test/environments.yaml. May be inherited from defaults.",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[a-z0-9][a-z0-9._+-]*$"
+          }
+        },
+        "modes": {
+          "description": "Test execution modes. Defaults to [devcontainer, standalone] when omitted.",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "devcontainer",
+              "standalone",
+              "macos"
+            ]
+          }
+        },
+        "tests": {
+          "description": "Test script IDs from checks.yaml (with or without a .sh suffix).",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9_]*(\\.sh)?$"
+          }
+        },
+        "options": {
+          "description": "Feature option key/value pairs merged with defaults (scenario wins).",
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^[a-zA-Z_][a-zA-Z0-9_-]*$"
+          },
+          "additionalProperties": {
+            "description": "Feature option value as passed to the installer.",
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ]
+          }
+        },
+        "setup": {
+          "description": "Shell commands run inside the container before install. In devcontainer mode these are baked into the generated Dockerfile as RUN layers.",
+          "type": "string"
+        },
+        "expect_install_failure": {
+          "description": "When true, the installer must exit non-zero. The runner validates install output against every kind: install_failure pattern in the scenario checks. In devcontainer mode the test container never starts, so only install_failure checks may be present when devcontainer is listed in modes.",
+          "const": true
+        },
+        "args": {
+          "description": "Additional CLI arguments forwarded to install.sh (rare; prefer options).",
+          "$ref": "#/$defs/string_map"
+        },
+        "env_vars": {
+          "description": "Extra environment variables set for the install invocation.",
+          "$ref": "#/$defs/string_map"
+        },
+        "test_shell": {
+          "description": "Shell invocation style for generated test scripts in standalone mode.",
+          "type": "string",
+          "enum": [
+            "login",
+            "nonlogin"
+          ]
+        },
+        "devcontainer": {
+          "description": "Mode-specific overrides applied when generating devcontainer.json test projects.",
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "remoteUser": {
+              "description": "devcontainer.json remoteUser for the test project.",
+              "type": "string",
+              "minLength": 1
+            },
+            "containerUser": {
+              "description": "devcontainer.json containerUser for the test project.",
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "standalone": {
+          "description": "Mode-specific overrides for standalone Docker test runs.",
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "user": {
+              "description": "Run generated test scripts as this user (install still runs as root unless skip_install is used).",
+              "type": "string",
+              "minLength": 1
+            },
+            "sudo": {
+              "description": "When false, do not use sudo when switching to standalone.user.",
+              "type": "boolean"
+            },
+            "network": {
+              "description": "Docker network mode for the standalone container.",
+              "const": "none"
+            },
+            "skip_install": {
+              "description": "When true, the runner does not invoke install.sh; the test script must install explicitly.",
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    }
+  }
+}

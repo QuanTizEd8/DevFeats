@@ -4,18 +4,30 @@ from __future__ import annotations
 
 import fnmatch
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 import yaml
 
 from proman.config import load as load_config
+from proman.test.environments import is_macos
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+DEFAULT_MODES: tuple[str, ...] = ("devcontainer", "standalone")
 
 
 def load(path: Path | str) -> tuple[dict, dict]:
     """Load scenarios YAML and split off the defaults key."""
-    with Path(path).open() as f:
+    with Path(path).open(encoding="utf-8") as f:
         data = yaml.safe_load(f) or {}
-    defaults = data.pop("defaults", {})
-    return defaults, data
+    if not isinstance(data, dict):
+        data = {}
+    defaults = data.get("defaults", {})
+    if not isinstance(defaults, dict):
+        defaults = {}
+    scenarios = {key: value for key, value in data.items() if key != "defaults"}
+    return defaults, scenarios
 
 
 def shared_defaults() -> dict:
@@ -80,6 +92,41 @@ def expand_envs(
                 sc["tests"] = [test_file]
             entries.append((".".join(parts), env_name, sc))
 
+    return entries
+
+
+def iter_merged_scenarios(
+    defaults: dict,
+    scenarios: dict,
+    shared: dict | None = None,
+) -> Iterator[tuple[str, dict]]:
+    """Yield ``(scenario_name, merged_scenario)`` with all defaults applied."""
+    layer = shared if shared is not None else shared_defaults()
+    for name, scenario in scenarios.items():
+        if not isinstance(scenario, dict):
+            continue
+        yield name, merge_all_defaults(scenario, defaults, layer)
+
+
+def expand_feature_entries(
+    defaults: dict,
+    scenarios: dict,
+    envs: dict[str, Any],
+    *,
+    shared: dict | None = None,
+) -> list[dict]:
+    """Expand scenarios into runner entries (same shape as run.py matrix entries)."""
+    entries: list[dict] = []
+    for name, merged_sc in iter_merged_scenarios(defaults, scenarios, shared):
+        for key, env_name, sc in expand_envs(name, merged_sc):
+            entries.append(
+                {
+                    "key": key,
+                    "env_name": env_name,
+                    "env_is_macos": is_macos(env_name, envs),
+                    "scenario": sc,
+                },
+            )
     return entries
 
 

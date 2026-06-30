@@ -97,6 +97,7 @@ macos_fresh_install:
 
 macos_if_exists_fail:
   envs: [macos-current+brew]
+  modes: [macos]
   options:
     if_exists: fail
   expect_install_failure: true

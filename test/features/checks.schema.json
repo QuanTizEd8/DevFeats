@@ -1,0 +1,167 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "checks.schema.json",
+  "title": "Feature test checks",
+  "description": "Maps test-script IDs to their check definitions. Each top-level key becomes a generated <id>.sh file under test/features/<feature-id>/tests/.",
+  "type": "object",
+  "minProperties": 1,
+  "propertyNames": {
+    "pattern": "^[a-z][a-z0-9_]*$"
+  },
+  "additionalProperties": {
+    "description": "One test script: an ordered list of checks plus optional shell setup/teardown.",
+    "type": "object",
+    "required": [
+      "checks"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "description": {
+        "description": "Short human-readable description emitted as a comment at the top of the generated script.",
+        "type": "string"
+      },
+      "pre": {
+        "description": "Verbatim shell content inserted after sourcing the test library and before any checks (variable assignments, helper function definitions, etc.).",
+        "type": "string"
+      },
+      "post": {
+        "description": "Shell content run on EXIT via a _cleanup() trap (e.g. dotfile cleanup).",
+        "type": "string"
+      },
+      "on_failure": {
+        "description": "Shell content for _test_failure_diagnostics(), called by the test library when any check fails.",
+        "type": "string"
+      },
+      "shell": {
+        "description": "Interpreter for the generated test script shebang (defaults to bash).",
+        "type": "string",
+        "enum": [
+          "bash",
+          "sh"
+        ]
+      },
+      "checks": {
+        "description": "Ordered list of check items.",
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "type": "object",
+          "required": [
+            "title"
+          ],
+          "properties": {
+            "title": {
+              "description": "Human-readable label shown in test output.",
+              "type": "string",
+              "minLength": 1
+            },
+            "debug": {
+              "description": "Verbatim shell content emitted unconditionally before this check (diagnostic echo/cat/ls calls). Unused for install_failure checks.",
+              "type": "string"
+            },
+            "on_fail": {
+              "description": "Verbatim shell content run only when this specific check fails. Unused for install_failure checks.",
+              "type": "string"
+            }
+          },
+          "oneOf": [
+            {
+              "description": "Asserts the installer exits non-zero and that install output contains pattern. Validated by the test runner on the install attempt; not emitted into generated .sh scripts.",
+              "required": [
+                "kind",
+                "pattern"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "install_failure"
+                },
+                "pattern": {
+                  "description": "Substring that must appear in captured install output when expect_install_failure is true.",
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            {
+              "description": "A runtime assertion executed inside the test container after install: maps to check / fail_check / checkMultiple.",
+              "required": [
+                "cmd"
+              ],
+              "properties": {
+                "cmd": {
+                  "description": "Command to run. String for check/fail; array of strings for checkMultiple.",
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "minItems": 2
+                    }
+                  ]
+                },
+                "kind": {
+                  "description": "Assertion function. Defaults to 'check' when omitted.",
+                  "type": "string",
+                  "enum": [
+                    "check",
+                    "fail",
+                    "multiple"
+                  ]
+                },
+                "min": {
+                  "description": "Minimum number of commands that must succeed (required when kind=multiple).",
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "allOf": [
+                {
+                  "if": {
+                    "properties": {
+                      "kind": {
+                        "const": "multiple"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ]
+                  },
+                  "then": {
+                    "required": [
+                      "min"
+                    ],
+                    "properties": {
+                      "cmd": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "minItems": 2
+                      }
+                    }
+                  },
+                  "else": {
+                    "properties": {
+                      "cmd": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          ],
+          "unevaluatedProperties": false
+        }
+      }
+    }
+  }
+}

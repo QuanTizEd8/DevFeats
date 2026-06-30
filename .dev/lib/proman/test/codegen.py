@@ -13,6 +13,9 @@ from typing import Any
 
 import yaml
 
+from proman.config import load as load_config
+from proman.test.loader import FeatureTestError, FeatureTestLoader
+
 # ---------------------------------------------------------------------------
 # Internal rendering helpers
 # ---------------------------------------------------------------------------
@@ -145,6 +148,16 @@ def _render_group(test_id: str, group: dict[str, Any]) -> str:  # noqa: ARG001
     return "".join(sections)
 
 
+def _write_tests(checks: dict[str, Any], tests_dir: Path) -> None:
+    """Write generated .sh files for all check groups."""
+    tests_dir.mkdir(parents=True, exist_ok=True)
+    for test_id, group in checks.items():
+        content = _render_group(test_id, group)
+        out_path = tests_dir / f"{test_id}.sh"
+        out_path.write_text(content, encoding="utf-8")
+        out_path.chmod(out_path.stat().st_mode | 0o111)
+
+
 # ---------------------------------------------------------------------------
 # Public API (called from run.py before test dispatch)
 # ---------------------------------------------------------------------------
@@ -152,29 +165,11 @@ def _render_group(test_id: str, group: dict[str, Any]) -> str:  # noqa: ARG001
 
 def generate_tests(
     _feature: str,
-    checks_path: Path,
+    checks: dict[str, Any],
     out_dir: Path,
 ) -> None:
-    """Generate .sh test files from checks.yaml into out_dir.
-
-    Parameters
-    ----------
-    _feature:
-        Feature name (reserved for future feature-specific logic).
-    checks_path:
-        Path to the checks.yaml file.
-    out_dir:
-        Directory where generated .sh files are written.
-    """
-    with checks_path.open(encoding="utf-8") as fh:
-        data: dict[str, Any] = yaml.safe_load(fh) or {}
-
-    out_dir.mkdir(parents=True, exist_ok=True)
-    for test_id, group in data.items():
-        content = _render_group(test_id, group)
-        out_path = out_dir / f"{test_id}.sh"
-        out_path.write_text(content, encoding="utf-8")
-        out_path.chmod(out_path.stat().st_mode | 0o111)
+    """Generate .sh test files from validated checks data into out_dir."""
+    _write_tests(checks, out_dir)
 
 
 # ---------------------------------------------------------------------------
@@ -192,6 +187,39 @@ def _repo_root_from_env_or_git() -> Path:
             text=True,
         ).strip(),
     )
+
+
+def _sync_feature_checks(
+    feature_name: str,
+    checks: dict[str, Any],
+    tests_dir: Path,
+    *,
+    check: bool,
+) -> list[str]:
+    """Write or verify generated scripts for one feature; return stale paths."""
+    stale: list[str] = []
+    if not check:
+        tests_dir.mkdir(parents=True, exist_ok=True)
+    for test_id, group in checks.items():
+        content = _render_group(test_id, group)
+        out_path = tests_dir / f"{test_id}.sh"
+
+        if check:
+            existing = out_path.read_text(encoding="utf-8") if out_path.exists() else ""
+            if existing != content:
+                diff = difflib.unified_diff(
+                    existing.splitlines(keepends=True),
+                    content.splitlines(keepends=True),
+                    fromfile=str(out_path),
+                    tofile=f"{test_id}.sh (generated)",
+                )
+                sys.stdout.writelines(diff)
+                stale.append(str(out_path))
+        else:
+            out_path.write_text(content, encoding="utf-8")
+            out_path.chmod(out_path.stat().st_mode | 0o111)
+            print(f"  ✔  {feature_name}/{test_id}.sh")
+    return stale
 
 
 def main() -> None:
@@ -222,57 +250,57 @@ def main() -> None:
 
     repo_root: Path = args.repo_root or _repo_root_from_env_or_git()
     features_test_dir = repo_root / "test" / "features"
-
-    if args.feature:
-        candidates = [features_test_dir / args.feature]
-    else:
-        candidates = sorted(
-            p
-            for p in features_test_dir.iterdir()
-            if p.is_dir() and (p / "checks.yaml").exists()
-        )
+    config_root = load_config().root_path.resolve()
+    use_loader = repo_root.resolve() == config_root
 
     stale: list[str] = []
 
-    for feat_dir in candidates:
-        checks_path = feat_dir / "checks.yaml"
-        if not checks_path.exists():
-            if args.feature:
-                print(
-                    f"⛔ No checks.yaml found for feature: {args.feature}",
-                    file=sys.stderr,
-                )
-                sys.exit(1)
-            continue
-
-        tests_dir = feat_dir / "tests"
-        feature_name = feat_dir.name
-
-        with checks_path.open(encoding="utf-8") as fh:
-            data: dict[str, Any] = yaml.safe_load(fh) or {}
-
-        for test_id, group in data.items():
-            content = _render_group(test_id, group)
-            out_path = tests_dir / f"{test_id}.sh"
-
-            if args.check:
-                existing = (
-                    out_path.read_text(encoding="utf-8") if out_path.exists() else ""
-                )
-                if existing != content:
-                    diff = difflib.unified_diff(
-                        existing.splitlines(keepends=True),
-                        content.splitlines(keepends=True),
-                        fromfile=str(out_path),
-                        tofile=f"{test_id}.sh (generated)",
+    if use_loader:
+        loader = FeatureTestLoader()
+        try:
+            loaded = [loader.load(args.feature)] if args.feature else loader.load_all()
+        except (FeatureTestError, FileNotFoundError) as exc:
+            print(f"⛔ {exc}", file=sys.stderr)
+            sys.exit(1)
+        for ft in loaded:
+            tests_dir = features_test_dir / ft.feature_id / "tests"
+            stale.extend(
+                _sync_feature_checks(
+                    ft.feature_id,
+                    ft.checks,
+                    tests_dir,
+                    check=args.check,
+                ),
+            )
+    else:
+        if args.feature:
+            feat_dirs = [features_test_dir / args.feature]
+        else:
+            feat_dirs = sorted(
+                p
+                for p in features_test_dir.iterdir()
+                if p.is_dir() and (p / "checks.yaml").exists()
+            )
+        for feat_dir in feat_dirs:
+            checks_path = feat_dir / "checks.yaml"
+            if not checks_path.exists():
+                if args.feature:
+                    print(
+                        f"⛔ No checks.yaml found for feature: {args.feature}",
+                        file=sys.stderr,
                     )
-                    sys.stdout.writelines(diff)
-                    stale.append(str(out_path))
-            else:
-                tests_dir.mkdir(parents=True, exist_ok=True)
-                out_path.write_text(content, encoding="utf-8")
-                out_path.chmod(out_path.stat().st_mode | 0o111)
-                print(f"  ✔  {feature_name}/{test_id}.sh")
+                    sys.exit(1)
+                continue
+            with checks_path.open(encoding="utf-8") as fh:
+                checks: dict[str, Any] = yaml.safe_load(fh) or {}
+            stale.extend(
+                _sync_feature_checks(
+                    feat_dir.name,
+                    checks,
+                    feat_dir / "tests",
+                    check=args.check,
+                ),
+            )
 
     if args.check and stale:
         print(

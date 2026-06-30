@@ -32,6 +32,8 @@ path:
   data_transfer: .local/data_transfer
   shared_metadata: ${{ path.features }}$/metadata.shared.yaml
   metadata_schema: ${{ path.features }}$/metadata.schema.json
+  checks_schema: ${{ path.test_features }}$/checks.schema.json
+  scenarios_schema: ${{ path.test_features }}$/scenarios.schema.json
   install_script_template: ${{ path.features }}$/install.tmpl.bash
 filename:
   feature_metadata: metadata.yaml

@@ -45,7 +45,9 @@
     ],
     // ── YAML schemas ─────────────────────────────────────────────────────────
     "yaml.schemas": {
-        "./features/metadata.schema.json": "features/*/metadata.yaml"
+        "./features/metadata.schema.json": "features/*/metadata.yaml",
+        "./test/features/checks.schema.json": "test/features/*/checks.yaml",
+        "./test/features/scenarios.schema.json": "test/features/*/scenarios.yaml"
     },
     // ── Bash IDE (shellcheck) ────────────────────────────────────────────────
     // Default is 500 files analysed in parallel — causes 8+ concurrent shellcheck

@@ -167,6 +167,14 @@ sync-tests-check feat="":
     pixi run --environment test sync-tests-check {{ feat }}
 
 
+[
+  group('sync'),
+  doc('Validate test/features/*/checks.yaml and scenarios.yaml against JSON Schema.')
+]
+validate-tests feat="":
+    pixi run --environment test validate-tests {{ feat }}
+
+
 # ── Build ─────────────────────────────────────────────────────────────────────
 
 [

@@ -16,7 +16,6 @@ devfeats/
 │   ├── install.tmpl.bash    ← Install script template used by proman-sync
 │   ├── metadata.shared.yaml ← Options injected into every feature at sync time
 │   ├── metadata.schema.json ← JSON Schema for metadata.yaml files
-│   ├── checks.schema.json   ← JSON Schema for test checks.yaml files
 │   └── install-os-pkg-bundle/ ← Package bundle manifests for install-os-pkg (not standalone features)
 │       └── bundles/<bundle-id>/
 │           ├── metadata.yaml  ← Bundle metadata (descriptions, URLs)
@@ -42,6 +41,9 @@ devfeats/
 ├── test/                    ← Test suite
 │   ├── environments.yaml    ← Central registry of Docker images for tests
 │   ├── features/
+│   │   ├── checks.schema.json   ← JSON Schema for test checks.yaml files
+│   │   ├── scenarios.schema.json ← JSON Schema for test scenarios.yaml files
+│   │   ├── defaults.shared.yaml ← Options merged into every feature scenario
 │   │   └── <feature-id>/
 │   │       ├── scenarios.yaml  ← Test matrix (envs, modes, options)
 │   │       ├── checks.yaml     ← Test assertions (source of truth for *.sh scripts)

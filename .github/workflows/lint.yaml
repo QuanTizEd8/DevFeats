@@ -34,6 +34,9 @@ jobs:
           validate-only: "true"
           base-path-to-features: ${{ fromJSON(inputs.config).validate.features_path }}
 
+      - name: Validate Feature Test Definitions
+        run: pixi run --environment test proman-validate-tests
+
   lint-shell:
     name: Shell Scripts
     if: fromJSON(inputs.config).shell.enabled == true

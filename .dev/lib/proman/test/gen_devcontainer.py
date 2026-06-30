@@ -14,7 +14,7 @@ from proman.feature_env import resolved_env_vars
 
 from .environments import _DOCKER_GITHUB_ARG_LINES, _collect_layers, is_macos
 from .environments import load as load_envs
-from .scenarios import expand_envs, merge_all_defaults, shared_defaults
+from .scenarios import DEFAULT_MODES, expand_envs, iter_merged_scenarios
 from .scenarios import load as load_scenarios
 
 _TESTLIB_PATH = "/tmp/_devfeats_testlib/dev-container-features-test-lib"  # noqa: S108
@@ -155,7 +155,6 @@ def generate(
 
     defaults, scenarios = load_scenarios(scenarios_path)
     cfg = load_config()
-    shared = shared_defaults()
     envs = load_envs(envs_path)
     envs_dir = cfg.absolute_path("path.test_envs")
     scenarios_dir = out_dir / "test" / feature
@@ -164,9 +163,8 @@ def generate(
     feat = cfg.absolute_path("path.test_features") / feature
     tests_src_dir = feat / str(cfg["filename.feature_tests"])
     output: dict = {}
-    for name, raw_sc in scenarios.items():
-        sc = merge_all_defaults(raw_sc, defaults, shared)
-        modes: list[str] = sc.get("modes", ["devcontainer", "standalone"])
+    for name, sc in iter_merged_scenarios(defaults, scenarios):
+        modes: list[str] = sc.get("modes", list(DEFAULT_MODES))
 
         for key, env_name, scenario in expand_envs(name, sc):
             if is_macos(env_name, envs):

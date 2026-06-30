@@ -136,7 +136,9 @@
         "bashIde.enableSourceErrorDiagnostics": false,
         // ── YAML Schema ─────────────────────────────────────────────────────────
         "yaml.schemas": {
-            "features/metadata.schema.json": ["features/*/metadata.yaml"]
+            "features/metadata.schema.json": ["features/*/metadata.yaml"],
+            "test/features/checks.schema.json": ["test/features/*/checks.yaml"],
+            "test/features/scenarios.schema.json": ["test/features/*/scenarios.yaml"]
         },
         "yaml.schemaStore.enable": false,
         "yaml.trace.server": "verbose",

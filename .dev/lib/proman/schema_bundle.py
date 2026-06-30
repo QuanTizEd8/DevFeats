@@ -16,29 +16,57 @@ from proman.config import load as load_config
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from proman.config import Config
+
 
 def get_validator() -> Draft202012Validator:
     """Return a Draft 2020-12 validator for ``metadata.yaml`` with local schema URIs."""
-    return _build_validator()
+    return _build_validator("path.metadata_schema")
+
+
+def get_checks_validator() -> Draft202012Validator:
+    """Return a Draft 2020-12 validator for ``test/features/*/checks.yaml``."""
+    return _build_validator("path.checks_schema")
+
+
+def get_scenarios_validator() -> Draft202012Validator:
+    """Return a Draft 2020-12 validator for ``test/features/*/scenarios.yaml``."""
+    return _build_validator("path.scenarios_schema")
 
 
 @cache
-def _build_validator() -> Draft202012Validator:
-    """Build and cache the Draft 2020-12 validator with local schema URIs."""
+def _build_validator(config_key: str) -> Draft202012Validator:
+    """Build and cache a Draft 2020-12 validator for a config schema path."""
     config = load_config()
-    schema_path = config.absolute_path("path.metadata_schema")
+    schema_path = config.absolute_path(config_key)
+    schema, registry = _registry_for_schema_file(schema_path)
+    if config_key == "path.metadata_schema":
+        registry = _extend_metadata_registry(registry, config, schema_path)
+    Draft202012Validator.check_schema(schema)
+    return Draft202012Validator(schema, registry=registry)
+
+
+def _registry_for_schema_file(schema_path: Path) -> tuple[dict[str, Any], Registry]:
+    """Load one schema file; return it with a single-document registry."""
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    uri = schema_path.as_uri()
+    _set_root_id(schema, uri)
+    registry = Registry().with_resource(uri, DRAFT202012.create_resource(schema))
+    return schema, registry
+
+
+def _extend_metadata_registry(
+    registry: Registry,
+    config: Config,
+    root_schema_path: Path,
+) -> Registry:
+    """Register lib/ and features/ schemas referenced from metadata.schema.json."""
     lib_dirpath = config.absolute_path("path.library")
     features_dirpath = config.absolute_path("path.features")
-    meta_data = json.loads(schema_path.read_text())
-    meta_uri = schema_path.as_uri()
     stem_to_uri = lib_schema_stem_to_uri(lib_dirpath)
     # metadata.schema.json uses $ref paths relative to features/ (e.g.
     # install-os-pkg/manifest.schema.json) so IDE yaml.schemas can load them;
-    # jsonschema resolves those against meta_uri once $id is set below.
-    _set_root_id(meta_data, meta_uri)
-    registry = Registry().with_resource(
-        meta_uri, DRAFT202012.create_resource(meta_data)
-    )
+    # jsonschema resolves those against the root schema URI once $id is set.
     for stem, uri in stem_to_uri.items():
         path = lib_dirpath / f"{stem}.schema.json"
         if not path.is_file():
@@ -47,18 +75,14 @@ def _build_validator() -> Draft202012Validator:
         _walk_replace_bare_stem_refs(doc, stem_to_uri)
         _set_root_id(doc, uri)
         registry = registry.with_resource(uri, DRAFT202012.create_resource(doc))
-    # Register feature-level schemas so $ref paths in metadata.schema.json that
-    # resolve to features/**/*.schema.json are available to the validator.
-    # Skip metadata.schema.json itself — it is already registered as meta_uri above.
     for feat_schema in sorted(features_dirpath.rglob("*.schema.json")):
-        if feat_schema.resolve() == schema_path.resolve():
+        if feat_schema.resolve() == root_schema_path.resolve():
             continue
         uri = feat_schema.as_uri()
         doc = deepcopy(json.loads(feat_schema.read_text(encoding="utf-8")))
         _set_root_id(doc, uri)
         registry = registry.with_resource(uri, DRAFT202012.create_resource(doc))
-    Draft202012Validator.check_schema(meta_data)
-    return Draft202012Validator(meta_data, registry=registry)
+    return registry
 
 
 def schema_stem_from_path(schema_path: Path) -> str:
@@ -170,5 +194,5 @@ def lib_schema_stem_to_uri(lib_dirpath: Path) -> dict[str, str]:
 
 
 def clear_validator_cache() -> None:
-    """Clear the cached metadata schema validator."""
+    """Clear cached JSON Schema validators."""
     _build_validator.cache_clear()

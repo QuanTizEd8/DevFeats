@@ -21,9 +21,9 @@ from pathlib import Path
 from proman.config import load as load_config
 from proman.feature_env import resolved_env_vars
 
-from .checks import install_failure_patterns, load_checks
+from .checks import install_failure_patterns
 from .codegen import generate_tests
-from .environments import docker_buildkit_env, is_macos, resolve
+from .environments import docker_buildkit_env, resolve
 from .environments import load as load_envs
 from .feature_logs import (
     DEVFEATS_LOG_BIND_DIR_ENV,
@@ -34,9 +34,9 @@ from .feature_logs import (
     patch_devcontainer_scenario_logging,
 )
 from .gen_devcontainer import generate
+from .loader import FeatureTestError, FeatureTestLoader
 from .names import FeatureTestRun, host_log_path
-from .scenarios import expand_envs, merge_all_defaults, shared_defaults
-from .scenarios import load as load_scenarios
+from .scenarios import DEFAULT_MODES
 
 _SHIM_SETUP = (
     "mkdir -p /tmp/_testlib"
@@ -245,28 +245,6 @@ def _build_macos_base_env(env_name: str, envs: dict) -> dict:
     return base
 
 
-def _load_entries(feature: str, envs: dict) -> list[dict]:
-    cfg = load_config()
-    feat = cfg.absolute_path("path.test_features") / feature
-    defaults, scenarios = load_scenarios(
-        feat / str(cfg["filename.feature_scenarios"]),
-    )
-    shared = shared_defaults()
-    entries = []
-    for name, sc in scenarios.items():
-        merged_sc = merge_all_defaults(sc, defaults, shared)
-        for key, env_name, scenario in expand_envs(name, merged_sc):
-            entries.append(
-                {
-                    "key": key,
-                    "env_name": env_name,
-                    "env_is_macos": is_macos(env_name, envs),
-                    "scenario": scenario,
-                },
-            )
-    return entries
-
-
 def _known_entry_keys(entries: list[dict]) -> set[str]:
     return {entry["key"] for entry in entries}
 
@@ -292,7 +270,7 @@ def _devcontainer_keys(
         key = entry["key"]
         if not _key_matches_filter(key, filter_prefix, known_keys):
             continue
-        modes = entry["scenario"].get("modes", ["devcontainer", "standalone"])
+        modes = entry["scenario"].get("modes", list(DEFAULT_MODES))
         if modes == ["standalone"]:
             continue
         if "devcontainer" not in modes:
@@ -305,6 +283,7 @@ def _run_devcontainer(
     feature: str,
     filter_prefix: str,
     entries: list[dict],
+    checks_data: dict,
 ) -> bool:
     ensure_host_log_dir()
     keys = _devcontainer_keys(entries, filter_prefix)
@@ -314,8 +293,6 @@ def _run_devcontainer(
     cfg = load_config()
     log_bind_dir = ensure_host_log_dir()
     feat = cfg.absolute_path("path.test_features") / feature
-    checks_path = feat / str(cfg["filename.feature_checks"])
-    checks_data = load_checks(checks_path) if checks_path.exists() else {}
     success = True
     for key in keys:
         entry = next(e for e in entries if e["key"] == key)
@@ -433,11 +410,9 @@ def _run_standalone(
     entries: list[dict],
     filter_prefix: str,
     envs: dict,
+    checks_data: dict,
 ) -> bool:
     cfg = load_config()
-    feat = cfg.absolute_path("path.test_features") / feature
-    checks_path = feat / str(cfg["filename.feature_checks"])
-    checks_data = load_checks(checks_path) if checks_path.exists() else {}
 
     known_keys = _known_entry_keys(entries)
     success = True
@@ -451,7 +426,7 @@ def _run_standalone(
         if not _key_matches_filter(key, filter_prefix, known_keys):
             continue
 
-        modes = scenario.get("modes", ["devcontainer", "standalone"])
+        modes = scenario.get("modes", list(DEFAULT_MODES))
         if "standalone" not in modes:
             continue
 
@@ -564,11 +539,10 @@ def _run_macos(
     entries: list[dict],
     filter_prefix: str,
     envs: dict,
+    checks_data: dict,
 ) -> bool:
     cfg = load_config()
     feat = cfg.absolute_path("path.test_features") / feature
-    checks_path = feat / str(cfg["filename.feature_checks"])
-    checks_data = load_checks(checks_path) if checks_path.exists() else {}
 
     shim_dir = tempfile.mkdtemp()
     try:
@@ -763,9 +737,15 @@ def main() -> None:
 
     feat = cfg.absolute_path("path.test_features") / args.feature
     tests_dir = feat / str(cfg["filename.feature_tests"])
-    checks_path = feat / str(cfg["filename.feature_checks"])
-    if checks_path.exists():
-        generate_tests(args.feature, checks_path, tests_dir)
+
+    try:
+        loader = FeatureTestLoader()
+        ft = loader.load(args.feature)
+    except (FeatureTestError, FileNotFoundError) as exc:
+        print(f"⛔ {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    generate_tests(args.feature, ft.checks, tests_dir)
 
     if not tests_dir.is_dir():
         print(
@@ -775,28 +755,34 @@ def main() -> None:
         sys.exit(1)
 
     envs = load_envs(cfg.absolute_path("path.test_environments"))
-    entries = _load_entries(args.feature, envs)
+    entries = loader.expand_entries(ft, envs)
 
     filter_prefix: str = args.filter
 
     if args.mode == "devcontainer":
-        ok = _run_devcontainer(args.feature, filter_prefix, entries)
+        ok = _run_devcontainer(args.feature, filter_prefix, entries, ft.checks)
         sys.exit(0 if ok else 1)
 
     if args.mode == "standalone":
-        ok = _run_standalone(args.feature, entries, filter_prefix, envs)
+        ok = _run_standalone(args.feature, entries, filter_prefix, envs, ft.checks)
         sys.exit(0 if ok else 1)
 
     if args.mode == "macos":
-        ok = _run_macos(args.feature, entries, filter_prefix, envs)
+        ok = _run_macos(args.feature, entries, filter_prefix, envs, ft.checks)
         sys.exit(0 if ok else 1)
 
     rc = 0
-    if not _run_devcontainer(args.feature, filter_prefix, entries):
+    if not _run_devcontainer(args.feature, filter_prefix, entries, ft.checks):
         rc = 1
-    if not _run_standalone(args.feature, entries, filter_prefix, envs):
+    if not _run_standalone(args.feature, entries, filter_prefix, envs, ft.checks):
         rc = 1
     has_macos = sys.platform == "darwin" or any(e["env_is_macos"] for e in entries)
-    if has_macos and not _run_macos(args.feature, entries, filter_prefix, envs):
+    if has_macos and not _run_macos(
+        args.feature,
+        entries,
+        filter_prefix,
+        envs,
+        ft.checks,
+    ):
         rc = 1
     sys.exit(rc)
