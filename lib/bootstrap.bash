@@ -586,11 +586,12 @@ bootstrap__jsonschema() {
   _resolved_ver="${_resolve_output##*$'\n'}"
 
   # Build asset name using ctx__expand_pattern for OS/arch substitution.
-  # sourcemeta/jsonschema asset naming: jsonschema-{ver}-{os}-{arch}.zip
-  # where {os} is "linux"/"darwin" and {arch} is "x86_64"/"arm64" (not amd64).
+  # sourcemeta/jsonschema asset naming: jsonschema-{ver}-{os}-{arch}[-musl].zip
+  # where {os} is "linux"/"darwin", {arch} is "x86_64"/"arm64" (not amd64),
+  # and Alpine/musl systems need the "-musl" suffix.
   local _asset_name
   _asset_name="$(ctx__expand_pattern \
-    "jsonschema-${_resolved_ver}-{plat.kernel:lower}-{plat.machine_release==amd64?x86_64:{plat.machine_release}}.zip")"
+    "jsonschema-${_resolved_ver}-{plat.kernel:lower}-{plat.machine_release==amd64?x86_64:{plat.machine_release}}{plat.libc==musl?-musl:}.zip")"
 
   local _install_dir
   _install_dir="$(file__tmpdir "bootstrap/jsonschema")"
