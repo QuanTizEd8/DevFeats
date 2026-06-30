@@ -11,8 +11,7 @@ def install_failure_patterns(
 ) -> list[str]:
     """Return expected install stderr/stdout substrings from install_failure checks."""
     patterns: list[str] = []
-    for ts in test_scripts:
-        test_id = ts.removesuffix(".sh") if ts.endswith(".sh") else ts
+    for test_id in test_scripts:
         group = checks_data.get(test_id, {})
         patterns.extend(
             str(item["pattern"])

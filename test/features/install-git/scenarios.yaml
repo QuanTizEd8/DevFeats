@@ -8,7 +8,7 @@ package_default:
   options:
     method: package
   tests:
-  - package_default.sh
+  - package_default
 
 upstream_package:
   envs:
@@ -18,7 +18,7 @@ upstream_package:
   options:
     method: upstream-package
   tests:
-  - upstream_package.sh
+  - upstream_package
 package_no_ppa:
   envs:
   - debian-stable
@@ -27,7 +27,7 @@ package_no_ppa:
   options:
     version: stable
   tests:
-  - package_no_ppa.sh
+  - package_no_ppa
 package_stable:
   envs:
   - ubuntu-stable
@@ -40,7 +40,7 @@ package_stable:
     prefix_discovery: none
     shell_completions: ''
   tests:
-  - package_stable.sh
+  - package_stable
 gitconfig_system:
   envs:
   - ubuntu-stable
@@ -55,7 +55,7 @@ gitconfig_system:
       /tmp/repo'
     gitconfig: "[push]\n  default = simple\n[fetch]\n  prune = true"
   tests:
-  - gitconfig_system.sh
+  - gitconfig_system
 gitconfig_identity:
   envs:
   - ubuntu-stable
@@ -65,7 +65,7 @@ gitconfig_identity:
     user_name: Dev User
     user_email: dev@example.com
   tests:
-  - gitconfig_identity.sh
+  - gitconfig_identity
 log_file:
   envs:
   - ubuntu-stable
@@ -74,7 +74,7 @@ log_file:
   options:
     log_file: /tmp/git.log
   tests:
-  - log_file.sh
+  - log_file
 source_stable:
   envs:
   - ubuntu-stable
@@ -84,7 +84,7 @@ source_stable:
     method: source
     version: stable
   tests:
-  - source_stable.sh
+  - source_stable
 source_pinned:
   envs:
   - ubuntu-stable
@@ -94,7 +94,7 @@ source_pinned:
     method: source
     version: 2.47.2
   tests:
-  - source_pinned.sh
+  - source_pinned
 source_installer_dir:
   envs:
   - ubuntu-stable
@@ -105,7 +105,7 @@ source_installer_dir:
     version: stable
     installer_dir: /tmp/git-build-trace
   tests:
-  - source_installer_dir.sh
+  - source_installer_dir
 source_custom_prefix:
   envs:
   - ubuntu-stable
@@ -117,7 +117,7 @@ source_custom_prefix:
     prefix: /opt/git
     prefix_discovery: all
   tests:
-  - source_custom_prefix.sh
+  - source_custom_prefix
 source_export_path_disabled:
   envs:
   - ubuntu-stable
@@ -130,7 +130,7 @@ source_export_path_disabled:
     export_path: ''
     prefix_discovery: none
   tests:
-  - source_export_path_disabled.sh
+  - source_export_path_disabled
 source_no_flags_perl:
   envs:
   - ubuntu-stable
@@ -141,7 +141,7 @@ source_no_flags_perl:
     version: stable
     no_flags: perl
   tests:
-  - source_no_flags_perl.sh
+  - source_no_flags_perl
 if_exists_skip:
   envs:
   - ubuntu-stable+git
@@ -150,7 +150,7 @@ if_exists_skip:
   options:
     if_exists: skip
   tests:
-  - if_exists_skip.sh
+  - if_exists_skip
 if_exists_reinstall_source:
   envs:
   - ubuntu-stable+git
@@ -163,7 +163,7 @@ if_exists_reinstall_source:
     if_exists: reinstall
     default_branch: trunk
   tests:
-  - if_exists_reinstall_source.sh
+  - if_exists_reinstall_source
 if_exists_update_package:
   envs:
   - ubuntu-stable+git
@@ -174,7 +174,7 @@ if_exists_update_package:
     version: stable
     default_branch: trunk
   tests:
-  - if_exists_update_package.sh
+  - if_exists_update_package
 if_exists_fail:
   envs:
   - ubuntu-stable
@@ -183,7 +183,7 @@ if_exists_fail:
   options:
     if_exists: fail
   tests:
-  - if_exists_fail.sh
+  - if_exists_fail
 if_exists_fail_preinstalled:
   expect_install_failure: true
   envs:
@@ -195,7 +195,7 @@ if_exists_fail_preinstalled:
   standalone:
     skip_install: false
   tests:
-  - if_exists_fail_preinstalled.sh
+  - if_exists_fail_preinstalled
 source_build_network_isolated:
   expect_install_failure: true
   envs:
@@ -206,7 +206,7 @@ source_build_network_isolated:
     network: none
     skip_install: false
   tests:
-  - source_build_network_isolated.sh
+  - source_build_network_isolated
   options:
     method: source
     version: latest
@@ -223,7 +223,7 @@ source_custom_prefix_nonroot:
     # Install must run as vscode (see checks pre); runner install is always root.
     skip_install: true
   tests:
-  - source_custom_prefix_nonroot.sh
+  - source_custom_prefix_nonroot
 invalid_if_exists:
   expect_install_failure: true
   envs:
@@ -233,7 +233,7 @@ invalid_if_exists:
   standalone:
     skip_install: false
   tests:
-  - invalid_if_exists.sh
+  - invalid_if_exists
   options:
     if_exists: invalid
 invalid_method:
@@ -245,7 +245,7 @@ invalid_method:
   standalone:
     skip_install: false
   tests:
-  - invalid_method.sh
+  - invalid_method
   options:
     method: invalid
 source_build_nonexistent_version:
@@ -257,7 +257,7 @@ source_build_nonexistent_version:
   standalone:
     skip_install: false
   tests:
-  - source_build_nonexistent_version.sh
+  - source_build_nonexistent_version
   options:
     method: source
     version: 0.0.0
@@ -276,4 +276,4 @@ macos_package_default:
     rm -f "${HOME}/.config/git/config"
     rmdir "${HOME}/.config/git" 2>/dev/null || true
   tests:
-  - macos_package_default.sh
+  - macos_package_default

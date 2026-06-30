@@ -16,6 +16,92 @@ if TYPE_CHECKING:
 
 DEFAULT_MODES: tuple[str, ...] = ("devcontainer", "standalone")
 
+# Applied when standalone.network: none or fast_net_fail: true
+# (see merge_scenario_env_vars). lib/net.bash reads these when --retries/--delay
+# are omitted. Success-path scenarios must not set them.
+FAST_NET_FAIL_ENV_VARS: dict[str, str] = {
+    "DEVFEATS_NET_FETCH_RETRIES": "1",
+    "DEVFEATS_NET_FETCH_DELAY": "0",
+}
+
+# Substrings in checks.yaml install-failure groups that mean the scenario exercises a
+# blocked or unreachable network fetch (not merely a local validation error).
+_NETWORK_FETCH_FAILURE_CHECK_NEEDLES: tuple[str, ...] = (
+    "network is blocked",
+    "github api unreachable",
+    "unreachable uri",
+    "devfeats-nonexistent-test-host.invalid",
+)
+
+
+def _install_failure_check_text(group: dict[str, Any]) -> str:
+    parts: list[str] = []
+    desc = group.get("description")
+    if isinstance(desc, str):
+        parts.append(desc)
+    for item in group.get("checks") or []:
+        if not isinstance(item, dict) or item.get("kind") != "install_failure":
+            continue
+        for key in ("title", "pattern"):
+            val = item.get(key)
+            if isinstance(val, str):
+                parts.append(val)
+    return "\n".join(parts).lower()
+
+
+def scenario_expects_network_fetch_failure(
+    checks: dict[str, Any],
+    test_id: str,
+) -> bool:
+    """Return True when checks describe blocked/unreachable network fetch."""
+    group = checks.get(test_id)
+    if not isinstance(group, dict):
+        return False
+    text = _install_failure_check_text(group)
+    return any(needle in text for needle in _NETWORK_FETCH_FAILURE_CHECK_NEEDLES)
+
+
+def scenario_injects_fast_net_fail_env(scenario: dict[str, Any]) -> bool:
+    """Return True when the runner should inject ``FAST_NET_FAIL_ENV_VARS``."""
+    if scenario.get("fast_net_fail"):
+        return True
+    standalone = scenario.get("standalone")
+    return isinstance(standalone, dict) and standalone.get("network") == "none"
+
+
+def scenario_has_fast_net_fail_config(scenario: dict[str, Any]) -> bool:
+    """Return True when the scenario opts into fast net-fetch failure."""
+    if scenario_injects_fast_net_fail_env(scenario):
+        return True
+    env_vars = scenario.get("env_vars") or {}
+    return isinstance(env_vars, dict) and "DEVFEATS_NET_FETCH_RETRIES" in env_vars
+
+
+def network_fetch_failure_test_ids_missing_fast_config(
+    checks: dict[str, Any],
+    scenario: dict[str, Any],
+) -> list[str]:
+    """Return test IDs expecting network fetch failure without fast-net-fail config."""
+    if not scenario.get("expect_install_failure"):
+        return []
+    if scenario_has_fast_net_fail_config(scenario):
+        return []
+
+    missing: list[str] = []
+    for test_id in scenario.get("tests") or []:
+        tid = str(test_id)
+        if scenario_expects_network_fetch_failure(checks, tid):
+            missing.append(tid)
+    return missing
+
+
+def merge_scenario_env_vars(scenario: dict[str, Any]) -> dict[str, str]:
+    """Return scenario env_vars with fast net-fail defaults when configured."""
+    env = {str(k): str(v) for k, v in (scenario.get("env_vars") or {}).items()}
+    if scenario_injects_fast_net_fail_env(scenario):
+        env = {**FAST_NET_FAIL_ENV_VARS, **env}
+    return env
+
 
 def load(path: Path | str) -> tuple[dict, dict]:
     """Load scenarios YAML and split off the defaults key."""
@@ -86,7 +172,7 @@ def expand_envs(
         for test_file in test_iter:
             parts = [name, env_name]
             if multi_test:
-                parts.append(Path(test_file).stem)
+                parts.append(test_file)
             sc = dict(scenario)
             if test_file is not None:
                 sc["tests"] = [test_file]

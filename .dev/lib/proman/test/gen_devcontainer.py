@@ -14,7 +14,12 @@ from proman.feature_env import resolved_env_vars
 
 from .environments import _DOCKER_GITHUB_ARG_LINES, _collect_layers, is_macos
 from .environments import load as load_envs
-from .scenarios import DEFAULT_MODES, expand_envs, iter_merged_scenarios
+from .scenarios import (
+    DEFAULT_MODES,
+    expand_envs,
+    iter_merged_scenarios,
+    merge_scenario_env_vars,
+)
 from .scenarios import load as load_scenarios
 
 _TESTLIB_PATH = "/tmp/_devfeats_testlib/dev-container-features-test-lib"  # noqa: S108
@@ -96,7 +101,7 @@ def _build_scenario(
 ) -> dict:
     """Build a single scenario dict and write its Dockerfile."""
     sc_args = scenario.get("args") or {}
-    sc_env_vars = scenario.get("env_vars") or {}
+    sc_env_vars = merge_scenario_env_vars(scenario)
 
     base_image, body, build_args = _collect_layers(
         env_name,
@@ -190,7 +195,7 @@ def generate(
             tests = scenario.get("tests", [])
             if tests:
                 ts0 = tests[0]
-                ts0_name = ts0 if ts0.endswith(".sh") else f"{ts0}.sh"
+                ts0_name = f"{ts0}.sh"
                 _copy_test_script(
                     tests_src_dir / ts0_name,
                     scenarios_dir / f"{key}.sh",

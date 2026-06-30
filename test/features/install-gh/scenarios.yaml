@@ -4,7 +4,7 @@ default:
   modes:
   - devcontainer
   tests:
-  - default.sh
+  - default
 binary_pinned_version:
   envs:
   - ubuntu-stable
@@ -14,7 +14,7 @@ binary_pinned_version:
     version: 2.67.0
     method: binary
   tests:
-  - binary_pinned_version.sh
+  - binary_pinned_version
 upstream_package_default:
   envs:
   - ubuntu-stable
@@ -27,7 +27,7 @@ upstream_package_default:
   options:
     method: upstream-package
   tests:
-  - upstream_package_default.sh
+  - upstream_package_default
 binary_custom_prefix:
   envs:
   - ubuntu-stable
@@ -38,7 +38,7 @@ binary_custom_prefix:
     prefix: /opt/gh
     prefix_discovery: symlink
   tests:
-  - binary_custom_prefix.sh
+  - binary_custom_prefix
 custom_prefix_no_symlink:
   envs:
   - ubuntu-stable
@@ -49,7 +49,7 @@ custom_prefix_no_symlink:
     prefix: /opt/gh
     prefix_discovery: none
   tests:
-  - custom_prefix_no_symlink.sh
+  - custom_prefix_no_symlink
 binary_no_completions:
   envs:
   - ubuntu-stable
@@ -59,7 +59,7 @@ binary_no_completions:
     method: binary
     shell_completions: ''
   tests:
-  - binary_no_completions.sh
+  - binary_no_completions
 upstream_package_no_completions:
   envs:
   - ubuntu-stable
@@ -69,7 +69,7 @@ upstream_package_no_completions:
     method: upstream-package
     shell_completions: ''
   tests:
-  - upstream_package_no_completions.sh
+  - upstream_package_no_completions
 git_protocol_https:
   envs:
   - ubuntu-stable+git+sudo+vscode
@@ -84,7 +84,7 @@ git_protocol_https:
   devcontainer:
     remoteUser: vscode
   tests:
-  - git_protocol_https.sh
+  - git_protocol_https
 setup_git:
   envs:
   - ubuntu-stable+git+sudo+vscode
@@ -99,7 +99,7 @@ setup_git:
   devcontainer:
     remoteUser: vscode
   tests:
-  - setup_git.sh
+  - setup_git
 sign_commits_ssh:
   envs:
   - ubuntu-stable+git+sudo+vscode
@@ -114,7 +114,7 @@ sign_commits_ssh:
   devcontainer:
     remoteUser: vscode
   tests:
-  - sign_commits_ssh.sh
+  - sign_commits_ssh
 sign_commits_gpg:
   envs:
   - ubuntu-stable+git+sudo+vscode
@@ -129,7 +129,7 @@ sign_commits_gpg:
   devcontainer:
     remoteUser: vscode
   tests:
-  - sign_commits_gpg.sh
+  - sign_commits_gpg
 if_exists_skip:
   envs:
   - ubuntu-stable+gh-2.67.0
@@ -138,7 +138,7 @@ if_exists_skip:
   options:
     if_exists: skip
   tests:
-  - if_exists_skip.sh
+  - if_exists_skip
 if_exists_skip_no_mutation:
   envs:
   - ubuntu-stable+gh-2.67.0
@@ -154,7 +154,7 @@ if_exists_skip_no_mutation:
   options:
     if_exists: skip
   tests:
-  - if_exists_skip_no_mutation.sh
+  - if_exists_skip_no_mutation
 version_match_idempotency:
   expect_install_failure: true
   envs:
@@ -166,7 +166,7 @@ version_match_idempotency:
     version: 2.67.0
     if_exists: fail
   tests:
-  - version_match_idempotency.sh
+  - version_match_idempotency
 installer_dir:
   envs:
   - ubuntu-stable
@@ -176,7 +176,7 @@ installer_dir:
     method: binary
     installer_dir: /tmp/gh-trace
   tests:
-  - installer_dir.sh
+  - installer_dir
 log_file:
   envs:
   - ubuntu-stable
@@ -186,7 +186,7 @@ log_file:
     method: upstream-package
     log_file: /tmp/gh-install.log
   tests:
-  - log_file.sh
+  - log_file
 binary_custom_prefix_nonroot:
   envs:
   - ubuntu-stable+vscode
@@ -199,7 +199,7 @@ binary_custom_prefix_nonroot:
   devcontainer:
     remoteUser: vscode
   tests:
-  - binary_custom_prefix_nonroot.sh
+  - binary_custom_prefix_nonroot
 ghes_hostname:
   envs:
   - ubuntu-stable+git+sudo+vscode
@@ -215,7 +215,7 @@ ghes_hostname:
   devcontainer:
     remoteUser: vscode
   tests:
-  - ghes_hostname.sh
+  - ghes_hostname
 add_users:
   envs:
   - ubuntu-stable+git+sudo+vscode
@@ -234,7 +234,7 @@ add_users:
     add_container_user: false
     setup_git: true
   tests:
-  - add_users.sh
+  - add_users
 extensions:
   envs:
   - ubuntu-stable+git+sudo+vscode
@@ -250,7 +250,7 @@ extensions:
   devcontainer:
     remoteUser: vscode
   tests:
-  - extensions.sh
+  - extensions
 binary_symlink_user_home_prefix:
   envs:
   - ubuntu-stable
@@ -261,7 +261,7 @@ binary_symlink_user_home_prefix:
     prefix: /root/gh
     prefix_discovery: symlink
   tests:
-  - binary_symlink_user_home_prefix.sh
+  - binary_symlink_user_home_prefix
 if_exists_fail_preinstalled:
   expect_install_failure: true
   envs:
@@ -280,7 +280,7 @@ if_exists_fail_preinstalled:
   standalone:
     skip_install: false
   tests:
-  - if_exists_fail_preinstalled.sh
+  - if_exists_fail_preinstalled
 if_exists_fail_preinstalled_network_isolated:
   expect_install_failure: true
   envs:
@@ -300,7 +300,7 @@ if_exists_fail_preinstalled_network_isolated:
     network: none
     skip_install: false
   tests:
-  - if_exists_fail_preinstalled_network_isolated.sh
+  - if_exists_fail_preinstalled_network_isolated
 network_isolated_version_resolution:
   expect_install_failure: true
   envs:
@@ -313,7 +313,7 @@ network_isolated_version_resolution:
   options:
     method: binary
   tests:
-  - network_isolated_version_resolution.sh
+  - network_isolated_version_resolution
 invalid_if_exists:
   expect_install_failure: true
   envs:
@@ -323,7 +323,7 @@ invalid_if_exists:
   standalone:
     skip_install: false
   tests:
-  - invalid_if_exists.sh
+  - invalid_if_exists
   options:
     if_exists: invalid
 invalid_method:
@@ -335,7 +335,7 @@ invalid_method:
   standalone:
     skip_install: false
   tests:
-  - invalid_method.sh
+  - invalid_method
   options:
     method: invalid
 invalid_sign_commits:
@@ -347,11 +347,11 @@ invalid_sign_commits:
   standalone:
     skip_install: false
   tests:
-  - invalid_sign_commits.sh
+  - invalid_sign_commits
   options:
     sign_commits: invalid
 macos_binary_default:
   envs:
   - macos-current+brew
   tests:
-  - macos_binary_default.sh
+  - macos_binary_default

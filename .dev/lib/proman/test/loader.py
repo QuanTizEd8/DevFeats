@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import yaml
 from jsonschema.exceptions import ValidationError
@@ -15,8 +15,12 @@ from proman.test.scenarios import (
     DEFAULT_MODES,
     expand_feature_entries,
     iter_merged_scenarios,
+    network_fetch_failure_test_ids_missing_fast_config,
     shared_defaults,
 )
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 class FeatureTestError(ValueError):
@@ -192,7 +196,7 @@ class FeatureTestLoader:
 
         test_ids = merged.get("tests") or []
         for raw_test_id in test_ids:
-            test_id = Path(str(raw_test_id)).stem
+            test_id = str(raw_test_id)
             if test_id not in checks:
                 msg = (
                     f"{scenarios_path}: scenario '{scenario_name}' references test"
@@ -200,6 +204,20 @@ class FeatureTestLoader:
                     f" '{test_id}'"
                 )
                 raise FeatureTestError(msg)
+
+        missing_fast = network_fetch_failure_test_ids_missing_fast_config(
+            checks,
+            merged,
+        )
+        if missing_fast:
+            test_id = missing_fast[0]
+            msg = (
+                f"{scenarios_path}: scenario '{scenario_name}' test"
+                f" '{test_id}' expects a network fetch failure; set"
+                " standalone.network: none, fast_net_fail: true, or"
+                " env_vars.DEVFEATS_NET_FETCH_RETRIES"
+            )
+            raise FeatureTestError(msg)
 
         if not merged.get("expect_install_failure"):
             return
@@ -209,7 +227,7 @@ class FeatureTestLoader:
             return
 
         for raw_test_id in test_ids:
-            test_id = Path(str(raw_test_id)).stem
+            test_id = str(raw_test_id)
             group = checks[test_id]
             for idx, item in enumerate(group.get("checks", [])):
                 kind = item.get("kind", "check")

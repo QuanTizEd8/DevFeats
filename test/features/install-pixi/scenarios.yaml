@@ -5,7 +5,7 @@ default:
   modes:
   - devcontainer
   tests:
-  - default.sh
+  - default
 binary_pinned_version:
   envs:
   - ubuntu-stable
@@ -14,7 +14,7 @@ binary_pinned_version:
   options:
     version: 0.41.0
   tests:
-  - binary_pinned_version.sh
+  - binary_pinned_version
 custom_bin_dir:
   envs:
   - ubuntu-stable
@@ -24,7 +24,7 @@ custom_bin_dir:
     prefix: /opt/pixi
     prefix_discovery: shell
   tests:
-  - custom_bin_dir.sh
+  - custom_bin_dir
 custom_bin_dir_symlink:
   envs:
   - ubuntu-stable
@@ -34,7 +34,7 @@ custom_bin_dir_symlink:
     prefix: /opt/pixi
     prefix_discovery: all
   tests:
-  - custom_bin_dir_symlink.sh
+  - custom_bin_dir_symlink
 if_exists_skip:
   envs:
   - ubuntu-stable+pixi
@@ -48,7 +48,7 @@ if_exists_skip:
   options:
     if_exists: skip
   tests:
-  - if_exists_skip.sh
+  - if_exists_skip
 if_exists_reinstall:
   envs:
   - ubuntu-stable+pixi
@@ -62,7 +62,7 @@ if_exists_reinstall:
   options:
     if_exists: reinstall
   tests:
-  - if_exists_reinstall.sh
+  - if_exists_reinstall
 if_exists_update:
   envs:
   - ubuntu-stable
@@ -71,7 +71,7 @@ if_exists_update:
   options:
     if_exists: update
   tests:
-  - if_exists_update.sh
+  - if_exists_update
 if_exists_update_existing:
   envs:
   - ubuntu-stable+pixi
@@ -86,7 +86,7 @@ if_exists_update_existing:
     version: latest
     if_exists: update
   tests:
-  - if_exists_update_existing.sh
+  - if_exists_update_existing
 version_match_idempotency:
   envs:
   - ubuntu-stable+pixi
@@ -101,7 +101,7 @@ version_match_idempotency:
     version: 0.41.0
     if_exists: reinstall
   tests:
-  - version_match_idempotency.sh
+  - version_match_idempotency
 version_match_path_only_symlink:
   envs:
   - ubuntu-stable+pixi
@@ -118,7 +118,7 @@ version_match_path_only_symlink:
     prefix: /opt/pixi
     prefix_discovery: symlink
   tests:
-  - version_match_path_only_symlink.sh
+  - version_match_path_only_symlink
 installer_dir:
   envs:
   - ubuntu-stable
@@ -127,7 +127,7 @@ installer_dir:
   options:
     installer_dir: /tmp/pixi-trace
   tests:
-  - installer_dir.sh
+  - installer_dir
 export_path_disabled:
   envs:
   - ubuntu-stable
@@ -138,7 +138,7 @@ export_path_disabled:
     export_path: ''
     prefix_discovery: none
   tests:
-  - export_path_disabled.sh
+  - export_path_disabled
 completions_bash:
   envs:
   - ubuntu-stable
@@ -147,7 +147,7 @@ completions_bash:
   options:
     shell_completions: bash
   tests:
-  - completions_bash.sh
+  - completions_bash
 completions_zsh:
   envs:
   - ubuntu-stable
@@ -156,7 +156,7 @@ completions_zsh:
   options:
     shell_completions: zsh
   tests:
-  - completions_zsh.sh
+  - completions_zsh
 home_dir:
   envs:
   - ubuntu-stable
@@ -165,7 +165,7 @@ home_dir:
   options:
     home_dir: /var/pixi
   tests:
-  - home_dir.sh
+  - home_dir
 log_file:
   envs:
   - ubuntu-stable
@@ -174,7 +174,7 @@ log_file:
   options:
     log_file: /tmp/pixi.log
   tests:
-  - log_file.sh
+  - log_file
 custom_bin_dir_symlink_nonroot:
   envs:
   - ubuntu-stable+vscode
@@ -186,7 +186,7 @@ custom_bin_dir_symlink_nonroot:
   devcontainer:
     remoteUser: vscode
   tests:
-  - custom_bin_dir_symlink_nonroot.sh
+  - custom_bin_dir_symlink_nonroot
 symlink_user_home_prefix:
   envs:
   - ubuntu-stable
@@ -196,7 +196,7 @@ symlink_user_home_prefix:
     prefix: /root/pixi
     prefix_discovery: symlink
   tests:
-  - symlink_user_home_prefix.sh
+  - symlink_user_home_prefix
 netrc_uri_file:
   envs:
   - ubuntu-stable
@@ -211,7 +211,7 @@ netrc_uri_file:
   options:
     netrc: file:///tmp/test.netrc
   tests:
-  - netrc_uri_file.sh
+  - netrc_uri_file
 github_api_unreachable_network_isolated:
   expect_install_failure: true
   envs:
@@ -222,7 +222,7 @@ github_api_unreachable_network_isolated:
     network: none
     skip_install: false
   tests:
-  - github_api_unreachable_network_isolated.sh
+  - github_api_unreachable_network_isolated
 if_exists_fail_preinstalled:
   expect_install_failure: true
   envs:
@@ -241,7 +241,7 @@ if_exists_fail_preinstalled:
   standalone:
     skip_install: false
   tests:
-  - if_exists_fail_preinstalled.sh
+  - if_exists_fail_preinstalled
 invalid_version_string:
   expect_install_failure: true
   envs:
@@ -251,7 +251,7 @@ invalid_version_string:
   standalone:
     skip_install: false
   tests:
-  - invalid_version_string.sh
+  - invalid_version_string
   options:
     version: not_a_semver_string
 invalid_version_suffix:
@@ -263,7 +263,7 @@ invalid_version_suffix:
   standalone:
     skip_install: false
   tests:
-  - invalid_version_suffix.sh
+  - invalid_version_suffix
   options:
     version: 1.2beta
 global_manifest_inline:
@@ -284,7 +284,7 @@ global_manifest_inline:
       dependencies = { jq = '*' }
       exposed = { jq = 'jq' }
   tests:
-  - global_manifest_inline.sh
+  - global_manifest_inline
 global_manifest_file:
   envs:
   - ubuntu-stable
@@ -303,7 +303,7 @@ global_manifest_file:
   options:
     global_manifest: /tmp/pixi-global.toml
   tests:
-  - global_manifest_file.sh
+  - global_manifest_file
 global_installs:
   envs:
   - ubuntu-stable
@@ -313,7 +313,7 @@ global_installs:
     global_installs:
     - --channel conda-forge jq
   tests:
-  - global_installs.sh
+  - global_installs
 install_all:
   envs:
   - ubuntu-stable
@@ -335,4 +335,4 @@ install_all:
     shell_completions: ''
     install: '--manifest-path /tmp/pixi-test/pixi.toml --all'
   tests:
-  - install_all.sh
+  - install_all

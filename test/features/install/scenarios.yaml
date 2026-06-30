@@ -127,6 +127,7 @@ prescript_fails_fast:
 invalid_uri:
   description: Unreachable HTTPS URI fails the feature (fail_fast=true).
   expect_install_failure: true
+  fast_net_fail: true
   options:
     scripts: "https://devfeats-nonexistent-test-host.invalid/script.sh"
     fail_fast: true

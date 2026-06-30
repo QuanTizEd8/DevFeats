@@ -86,7 +86,7 @@ defaults:
 default_install:
   envs: [ubuntu-stable]          # Docker image keys from test/environments.yaml
   modes: [devcontainer]         # devcontainer | standalone | macos
-  tests: [default_install.sh]   # test scripts to run (from tests/)
+  tests: [default_install]   # checks.yaml group IDs (scripts are tests/<id>.sh)
 
 source_build:
   envs: [ubuntu-stable, alpine-current]
@@ -94,7 +94,7 @@ source_build:
   options:
     method: source
     version: stable
-  tests: [source_build.sh]
+  tests: [source_build]
 
 gitconfig_user:
   envs: [ubuntu-stable]
@@ -105,19 +105,19 @@ gitconfig_user:
     user_name: Dev User
   devcontainer:
     remoteUser: vscode   # mode-specific overrides
-  tests: [gitconfig_user.sh]
+  tests: [gitconfig_user]
 
 network_isolated:
   envs: [ubuntu-stable]
   modes: [standalone]
   standalone:
     network: none    # run with --network none
-  tests: [network_isolated.sh]
+  tests: [network_isolated]
 
 macos_default:
   envs: [macos-current+brew]   # references a macOS environment in test/environments.yaml
   modes: [macos]
-  tests: [macos_default.sh]
+  tests: [macos_default]
 
 invalid_method:
   expect_install_failure: true   # assert the installer exits non-zero
@@ -125,7 +125,7 @@ invalid_method:
   modes: [devcontainer]
   options:
     method: invalid_value
-  tests: [invalid_method.sh]
+  tests: [invalid_method]
 ```
 
 **Scenario-level keys:**
@@ -135,11 +135,12 @@ invalid_method:
 | `envs` | Docker image keys from `test/environments.yaml` — see that file for the full list |
 | `modes` | `devcontainer`, `standalone`, `macos` — defaults to `[devcontainer, standalone]` if omitted |
 | `options` | Feature option key/value pairs; merged with `defaults.options` (scenario wins) |
-| `tests` | Test script names from `tests/`; all run sequentially per scenario |
+| `tests` | `checks.yaml` group IDs (generated scripts live at `tests/<id>.sh`) |
 | `setup` | Shell commands run inside the container before install. In standalone mode: executed before `install.sh`. In devcontainer mode: baked into the generated Dockerfile as a `RUN` layer |
 | `expect_install_failure` | If `true`, asserts the installer exits non-zero; runner validates exit code and every `kind: install_failure` `pattern` in the scenario's checks |
 | `devcontainer` | Mode-specific overrides: `remoteUser`, `containerUser` |
 | `standalone` | Mode-specific overrides: `user` (run tests as this user), `sudo: false` (disable sudo for user), `network: none` (block outbound traffic), `skip_install: true` (test script calls install itself) |
+| `fast_net_fail` | When `true`, set `DEVFEATS_NET_FETCH_RETRIES=1` and `DEVFEATS_NET_FETCH_DELAY=0` during install so expected unreachable-host failures finish quickly. Implied automatically when `standalone.network: none` |
 
 **`modes`:**
 - `devcontainer` — installs via the devcontainer CLI in a Docker container.
@@ -216,7 +217,7 @@ invalid_method:
   modes: [devcontainer]
   options:
     method: invalid
-  tests: [invalid_method.sh]
+  tests: [invalid_method]
 
 # checks.yaml
 invalid_method:

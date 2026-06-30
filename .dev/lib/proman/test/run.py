@@ -36,7 +36,7 @@ from .feature_logs import (
 from .gen_devcontainer import generate
 from .loader import FeatureTestError, FeatureTestLoader
 from .names import FeatureTestRun, host_log_path
-from .scenarios import DEFAULT_MODES
+from .scenarios import DEFAULT_MODES, merge_scenario_env_vars
 
 _SHIM_SETUP = (
     "mkdir -p /tmp/_testlib"
@@ -449,7 +449,7 @@ def _run_standalone(
             continue
         options = scenario.get("options", {})
         sc_args = scenario.get("args") or {}
-        sc_env_vars = scenario.get("env_vars") or {}
+        sc_env_vars = merge_scenario_env_vars(scenario)
 
         image = resolve(
             env_name,
@@ -463,7 +463,7 @@ def _run_standalone(
             f"{k}={shlex.quote(v)}" for k, v in resolved_env_vars(feature).items()
         )
         for ts in test_scripts:
-            ts_name = ts if ts.endswith(".sh") else f"{ts}.sh"
+            ts_name = f"{ts}.sh"
             ts_path = f"/repo/test/features/{feature}/tests/{ts_name}"
             if user:
                 test_cmd_lines.append(
@@ -604,6 +604,7 @@ def _run_macos(
                 # run_env adds feature options on top of base_env for the install
                 # script and test scripts.
                 run_env = dict(base_env)
+                run_env.update(merge_scenario_env_vars(scenario))
                 for k, v in options.items():
                     env_key = k.upper().replace("-", "_")
                     run_env[env_key] = str(v).lower() if isinstance(v, bool) else str(v)
@@ -661,7 +662,7 @@ def _run_macos(
                 test_shell = scenario.get("test_shell", "login")
 
                 for ts in test_scripts:
-                    ts_name = ts if ts.endswith(".sh") else f"{ts}.sh"
+                    ts_name = f"{ts}.sh"
                     ts_path = str(
                         feat / str(cfg["filename.feature_tests"]) / ts_name,
                     )

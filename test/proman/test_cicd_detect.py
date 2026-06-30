@@ -179,10 +179,10 @@ ubuntu-latest:
         """\
 default:
   envs: [ubuntu-latest]
-  tests: [default.sh]
+  tests: [default]
 macos_default:
   envs: [macos-latest]
-  tests: [macos_default.sh]
+  tests: [macos_default]
 """,
     )
     _write(
@@ -190,7 +190,7 @@ macos_default:
         """\
 linux_only:
   envs: [ubuntu-latest]
-  tests: [linux_only.sh]
+  tests: [linux_only]
 """,
     )
     result = cd.compute_macos_matrix(["install-bar", "install-foo"])
@@ -215,7 +215,7 @@ def test_compute_macos_matrix_empty_when_no_macos(
     )
     _write(
         tmp_path / "test/features/install-foo/scenarios.yaml",
-        "default:\n  envs: [ubuntu-latest]\n  tests: [default.sh]\n",
+        "default:\n  envs: [ubuntu-latest]\n  tests: [default]\n",
     )
     result = cd.compute_macos_matrix(["install-foo"])
     assert result == []
@@ -236,10 +236,10 @@ def test_compute_macos_matrix_one_entry_per_scenario(
         """\
 scenario_a:
   envs: [macos-latest]
-  tests: [a.sh]
+  tests: [a]
 scenario_b:
   envs: [macos-latest]
-  tests: [b.sh]
+  tests: [b]
 """,
     )
     result = cd.compute_macos_matrix(["install-foo"])
@@ -272,7 +272,7 @@ def test_compute_feature_matrix_default_modes_in_both_linux_lists(
     )
     _write(
         tmp_path / "test/features/install-foo/scenarios.yaml",
-        "default:\n  envs: [ubuntu-latest]\n  tests: [default.sh]\n",
+        "default:\n  envs: [ubuntu-latest]\n  tests: [default]\n",
     )
     result = cd.compute_feature_matrix(["install-foo"], [])
     assert result == [
@@ -301,7 +301,7 @@ def test_compute_feature_matrix_standalone_only_excluded_from_devcontainer(
 only_standalone:
   envs: [ubuntu-latest]
   modes: [standalone]
-  tests: [t.sh]
+  tests: [t]
 """,
     )
     result = cd.compute_feature_matrix(["install-foo"], [])
@@ -327,7 +327,7 @@ def test_compute_feature_matrix_macos_env_only_in_macos_scenarios(
     )
     _write(
         tmp_path / "test/features/install-foo/scenarios.yaml",
-        "mac_sc:\n  envs: [macos-latest]\n  tests: [mac.sh]\n",
+        "mac_sc:\n  envs: [macos-latest]\n  tests: [mac]\n",
     )
     result = cd.compute_feature_matrix([], ["install-foo"])
     assert result == [
@@ -358,10 +358,10 @@ def test_compute_feature_matrix_feature_in_both_linux_and_macos(
         """\
 default:
   envs: [ubuntu-latest]
-  tests: [default.sh]
+  tests: [default]
 mac_sc:
   envs: [macos-latest]
-  tests: [mac.sh]
+  tests: [mac]
 """,
     )
     result = cd.compute_feature_matrix(["install-foo"], ["install-foo"])
@@ -393,10 +393,10 @@ def test_compute_feature_matrix_macos_only_id_excludes_linux_scenarios(
         """\
 default:
   envs: [ubuntu-latest]
-  tests: [default.sh]
+  tests: [default]
 mac_sc:
   envs: [macos-latest]
-  tests: [mac.sh]
+  tests: [mac]
 """,
     )
     result = cd.compute_feature_matrix([], ["install-foo"])

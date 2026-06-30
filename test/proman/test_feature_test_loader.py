@@ -196,3 +196,46 @@ def test_load_rejects_devcontainer_runtime_checks(
         match="only install_failure checks",
     ):
         _loader().load("demo-feat")
+
+
+def test_load_rejects_network_failure_without_fast_net_fail(
+    repo_root: Path,
+) -> None:
+    """Scenarios that expect network fetch failure must opt into fast retries."""
+    checks_path = repo_root / "test/features/demo-feat/checks.yaml"
+    checks_path.write_text(
+        yaml.dump(
+            {
+                "blocked_net": {
+                    "description": "Verify install fails when the network is blocked.",
+                    "checks": [
+                        {
+                            "kind": "install_failure",
+                            "title": "install fails when GitHub API is unreachable",
+                            "pattern": "GitHub API unreachable",
+                        },
+                    ],
+                },
+            },
+        ),
+        encoding="utf-8",
+    )
+    scenarios_path = repo_root / "test/features/demo-feat/scenarios.yaml"
+    scenarios_path.write_text(
+        yaml.dump(
+            {
+                "blocked_net": {
+                    "envs": ["ubuntu-24.04"],
+                    "modes": ["standalone"],
+                    "expect_install_failure": True,
+                    "tests": ["blocked_net"],
+                },
+            },
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(
+        FeatureTestError,
+        match="expects a network fetch failure",
+    ):
+        _loader().load("demo-feat")

@@ -140,3 +140,11 @@ reload_lib() {
   declare -gA _CTX__REGISTRY=()
   _CTX__REGISTRY_INITIALIZED=false
 }
+
+# lib_test__net_fetch_fail_fast — opt-in for bats tests that expect a network fetch
+# to fail (unreachable host, blocked network). lib/net.bash reads these when
+# --retries/--delay are omitted. Do not call in success-path network tests.
+lib_test__net_fetch_fail_fast() {
+  export DEVFEATS_NET_FETCH_RETRIES=1
+  export DEVFEATS_NET_FETCH_DELAY=0
+}

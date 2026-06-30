@@ -31,11 +31,13 @@ setup() {
 }
 
 @test "net__fetch_url_stdout: returns failure for an unreachable host" {
+  lib_test__net_fetch_fail_fast
   run net__fetch_url_stdout "https://0.0.0.0/no"
   assert_failure
 }
 
 @test "net__fetch_url_file: returns failure for an unreachable host" {
+  lib_test__net_fetch_fail_fast
   local _dest="${BATS_TEST_TMPDIR}/unreachable.txt"
   run net__fetch_url_file "https://0.0.0.0/no" "$_dest"
   assert_failure

@@ -18,13 +18,13 @@ def test_expand_envs_always_includes_env() -> None:
     """Single-env scenarios get env suffix in run key."""
     entries = expand_envs(
         "default",
-        {"envs": ["ubuntu-stable"], "tests": ["default.sh"]},
+        {"envs": ["ubuntu-stable"], "tests": ["default"]},
     )
     assert entries == [
         (
             "default.ubuntu-stable",
             "ubuntu-stable",
-            {"envs": ["ubuntu-stable"], "tests": ["default.sh"]},
+            {"envs": ["ubuntu-stable"], "tests": ["default"]},
         ),
     ]
 
@@ -35,7 +35,7 @@ def test_expand_envs_multi_env_unchanged() -> None:
         "package_default",
         {
             "envs": ["debian-stable+bash", "ubuntu-stable"],
-            "tests": ["package_default.sh"],
+            "tests": ["package_default"],
         },
     )
     assert [e[0] for e in entries] == [

@@ -38,14 +38,14 @@ net__fetch_with_retry() {
   # that are not curl/wget.
   #
   # Args:
-  #   --retries N      Maximum number of attempts (default: 60).
-  #   --delay N        Seconds to wait between failures (default: 5).
+  #   --retries N      Maximum number of attempts (default: 60, or DEVFEATS_NET_FETCH_RETRIES).
+  #   --delay N        Seconds to wait between failures (default: 5, or DEVFEATS_NET_FETCH_DELAY).
   #   --bail-on CODE   If the command exits with CODE, stop immediately without
   #                    retrying (use for non-transient configuration errors).
   #   <cmd...>         Command and arguments to run.
   #
   # Returns: 0 on success, 1 after all retries exhausted.
-  local _max=60 _delay=5 _bail_on="" _xt=false
+  local _max="${DEVFEATS_NET_FETCH_RETRIES:-60}" _delay="${DEVFEATS_NET_FETCH_DELAY:-5}" _bail_on="" _xt=false
   case "$-" in *x*) _xt=true ;; esac
   { set +x; } 2> /dev/null
   while [ $# -gt 0 ]; do
@@ -99,7 +99,7 @@ _net__fetch() {
   # curl uses --retry (transient errors only); wget falls back to net__fetch_with_retry.
   local _url="$1" _dest="$2"
   shift 2
-  local _max=60 _delay=5 _hdrs='' _netrc=''
+  local _max="${DEVFEATS_NET_FETCH_RETRIES:-60}" _delay="${DEVFEATS_NET_FETCH_DELAY:-5}" _hdrs='' _netrc=''
   while [ $# -gt 0 ]; do
     case "$1" in
       --retries)
@@ -191,8 +191,8 @@ net__fetch_url_stdout() {
   #
   # Args:
   #   <url>                URL to download.
-  #   --retries N          Maximum number of attempts (default: 60, ≈5 min at 5s).
-  #   --delay N            Seconds between failures (default: 5).
+  #   --retries N          Maximum number of attempts (default: 60, or DEVFEATS_NET_FETCH_RETRIES).
+  #   --delay N            Seconds between failures (default: 5, or DEVFEATS_NET_FETCH_DELAY).
   #   --header <H>         Request header (e.g. `Authorization: Bearer $TOKEN`); repeatable.
   #   --netrc-file <path>  Optional netrc file for HTTP authentication.
   #
@@ -215,8 +215,8 @@ net__fetch_url_file() {
   # Args:
   #   <url>                URL to download.
   #   <dest>               Destination file path.
-  #   --retries N          Maximum number of attempts (default: 60, ≈5 min at 5s).
-  #   --delay N            Seconds between failures (default: 5).
+  #   --retries N          Maximum number of attempts (default: 60, or DEVFEATS_NET_FETCH_RETRIES).
+  #   --delay N            Seconds between failures (default: 5, or DEVFEATS_NET_FETCH_DELAY).
   #   --header <H>         Request header (e.g. `Authorization: Bearer $TOKEN`); repeatable.
   #   --netrc-file <path>  Optional netrc file for HTTP authentication.
   #
