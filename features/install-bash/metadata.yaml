@@ -25,6 +25,13 @@ _options:
       build_system: autotools
       configure_args:
         - "--without-bash-malloc"
+      build_env:
+        - value: "CFLAGS=-std=gnu17"
+          when:
+            feat.version: {lt: "5.3"}
+        - value: "CFLAGS_FOR_BUILD=-std=gnu17"
+          when:
+            feat.version: {lt: "5.3"}
       make_targets:
         - "install"
   prefix:
