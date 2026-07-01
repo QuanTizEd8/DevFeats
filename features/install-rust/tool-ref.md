@@ -84,9 +84,10 @@ The official `rustup-init.sh` script performs automatic platform detection for t
 
 - **`curl`** or **`wget`** — One of these must be available for downloading the `rustup-init` binary. The script prefers `curl` but falls back to `wget`.[^rustup-init-sh]
 - **`sh`** (POSIX-compliant shell) — The initial `rustup-init.sh` script is a POSIX shell script.
-- **`uname`**, **`mktemp`**, **`chmod`**, **`mkdir`**, **`rm`**, **`rmdir`**, **`head`**, **`tail`**, **`grep`**, **`cut`**, **`printf`** — Standard POSIX utilities used during installation for platform detection and download.[^rustup-init-sh]
+- **`uname`**, **`mktemp`**, **`chmod`**, **`mkdir`**, **`rm`**, **`rmdir`** — POSIX utilities verified by `need_cmd` at script startup; installation fails immediately if missing.[^rustup-init-sh]
+- **`head`**, **`tail`**, **`grep`**, **`cut`**, **`printf`** — POSIX utilities used at runtime in helper functions but **not** pre-checked by `need_cmd`. The script will fail at the point of use if they are absent.[^rustup-init-sh]
 - **C compiler and linker** — Required for compiling Rust code. On Linux this is typically `gcc` or `clang` with `binutils`. On macOS this is `clang` (from Xcode Command Line Tools). On Windows with MSVC target, this requires Visual Studio build tools.[^rust-book-install]
-- **`rustup` executable architecture compatibility** — The pre-built `rustup-init` binary for the host target must be executable on the system. For Linux, this means glibc-based builds require glibc; musl-based builds require musl libc.[^rustup-dist-dir]
+- **`rustup` executable architecture compatibility** — The pre-built `rustup-init` binary for the host target must be executable on the system. For Linux, this means glibc-based builds require glibc; musl-based builds require musl libc.[^rustup-other-install]
 
 ##### Platform-Specific Dependencies
 
@@ -201,12 +202,14 @@ The `rustup-init` executable accepts the following command-line flags:[^rustup-i
 
 | Flag | Description |
 |------|-------------|
+| `-h`, `--help` | Print help information and exit |
+| `-V`, `--version` | Print version information and exit |
 | `-y`, `--yes` | Disable the confirmation prompt (non-interactive) |
 | `-v`, `--verbose` | Enable verbose (DEBUG-level) logging |
 | `-q`, `--quiet` | Disable progress output, set log level to `WARN` |
 | `--default-host <HOST>` | Override the detected host target triple (e.g., `x86_64-pc-windows-gnu`) |
 | `--default-toolchain <TOOLCHAIN>` | Set the default toolchain to install (e.g., `stable`, `nightly`, `1.85.0`, `none`) |
-| `--profile <PROFILE>` | Select the install profile: `minimal`, `default`, or `complete` |
+| `--profile <PROFILE>` | Select the install profile: `minimal` (default: `default`), `default`, or `complete` |
 | `-c`, `--component <COMPONENT>` | Comma-separated list of additional components to install (e.g., `rust-analyzer,clippy`) |
 | `-t`, `--target <TARGET>` | Comma-separated list of additional targets to install (e.g., `wasm32-unknown-unknown`) |
 | `--no-update-default-toolchain` | Don't update any existing default toolchain |
@@ -228,6 +231,14 @@ The `rustup-init` executable accepts the following command-line flags:[^rustup-i
 | `RUSTUP_IO_THREADS` *(unstable)* | auto (max 8) | Number of IO threads for unpacking |
 | `RUSTUP_TERM_COLOR` | `auto` | Color output: `auto`, `always`, or `never` |
 | `RUSTUP_TERM_PROGRESS_WHEN` | `auto` | Progress bar display: `always`, `never`, or `auto` |
+| `RUSTUP_PERMIT_COPY_RENAME` *(unstable)* | (unset) | Permit copy+rename in place of atomic rename on OverlayFS (Docker) — sacrifices transactional safety[^rustup-env-vars] |
+| `RUSTUP_LOG` | (none) | Custom logging mode with `tracing_subscriber` directive syntax |
+| `RUSTUP_NO_BACKTRACE` | (none) | Disable backtraces on non-panic errors |
+| `RUSTUP_UNPACK_RAM` *(unstable)* | auto | Caps RAM (in MB) used for IO during unpacking |
+| `RUSTUP_TRACE_DIR` *(unstable)* | (none) | Enable tracing output directory |
+| `RUSTUP_HARDLINK_PROXIES` *(unstable)* | (unset) | Force hardlinks instead of symlinks for proxy binaries |
+| `RUSTUP_TERM_WIDTH` | auto | Override terminal width for progress bars |
+| `RUSTUP_TOOLCHAIN_SOURCE` *(unstable)* | (none) | Tells proxied tools how the toolchain was determined |
 
 #### Post-Installation Steps and Cleanup
 
@@ -416,7 +427,7 @@ Standalone installers are signed with the Rust GPG signing key. Signatures (`.as
 gpg --verify rust-1.96.1-x86_64-unknown-linux-gnu.tar.xz.asc
 ```
 
-Standalone installers also have `.sha256` checksum files available alongside the downloads (e.g., `rust-1.96.1-x86_64-unknown-linux-gnu.tar.xz.sha256`), which can be used for verification without GPG. These files follow the same URL pattern as the installer archives — appending `.sha256` to the archive URL.[^rustup-other-install]
+Standalone installers also have `.sha256` checksum files available alongside the downloads (e.g., `rust-1.96.1-x86_64-unknown-linux-gnu.tar.xz.sha256`), which can be used for verification without GPG. These files follow the same URL pattern as the installer archives — appending `.sha256` to the archive URL. (The SHA-256 files are distributed at the same location as the archives themselves; the Rust Forge page only documents GPG signatures, but the checksum files follow the same naming convention as the `rustup-init` SHA-256 files documented in the rustup book.)[^rustup-other-install]
 
 The Rust signing key is available at https://static.rust-lang.org/rust-key.gpg.ascii.
 
@@ -606,7 +617,7 @@ OS package manager installations are cleaned up through the package manager itse
 
 The `rustup` package itself is upgraded through the OS package manager's normal update process. The installed Rust toolchains (managed by `rustup`) are updated independently via `rustup update`.
 
-On Arch Linux, `rustup self update` is disabled; `rustup` itself must always be updated through `pacman`.[^archlinux-wiki-rust]
+On Arch Linux, `rustup self update` will **not** work when installed via `pacman`; `rustup` itself must always be updated through `pacman`.[^archlinux-wiki-rust]
 
 ##### Uninstallation
 
@@ -658,7 +669,11 @@ When installing the Rust toolchain in a devcontainer environment, the following 
   ```sh
   rustup component add rust-analyzer
   ```
-  The server binary is installed to `$CARGO_HOME/bin/rust-analyzer`. Editor integration varies:
+  The server binary is installed to `$CARGO_HOME/bin/rust-analyzer`. For full source-level IDE features (go-to-definition for standard library types, inline documentation, etc.), add the `rust-src` component as well:
+  ```sh
+  rustup component add rust-src
+  ```
+  Editor integration varies:
   - **VS Code**: Install the `rust-lang.rust-analyzer` extension
   - **Vim/Neovim**: Use the `rust-analyzer` language server with `coc.nvim`, `vim-lsp`, or `nvim-lspconfig`
   - **Emacs**: Use `eglot` or `lsp-mode`
@@ -704,8 +719,6 @@ When installing the Rust toolchain in a devcontainer environment, the following 
 [^rustup-other-install]: [The rustup book — Other installation methods](https://rust-lang.github.io/rustup/installation/other.html). Direct download links for rustup-init binaries for all supported platforms, SHA-256 checksum information, and package manager installation instructions.
 
 [^rustup-init-sh]: [rustup-init.sh source code — GitHub](https://github.com/rust-lang/rustup/blob/main/rustup-init.sh). Full source code (926 lines) of the POSIX shell installer script. Contains all platform detection logic, downloader implementation, and installation orchestration.
-
-[^rustup-dist-dir]: [Rustup distribution directory — static.rust-lang.org](https://static.rust-lang.org/rustup/dist/). Listing of all available rustup-init binaries by target triple.
 
 [^rust-book-install]: [The Rust Programming Language — Installation](https://doc.rust-lang.org/book/ch01-01-installation.html). Official Rust book's installation chapter, describing system requirements (C compiler, linker) and the rustup installation process.
 
