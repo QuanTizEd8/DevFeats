@@ -1,0 +1,582 @@
+# Feature Reference
+
+The Rust toolchain comprises a collection of tools for developing in the Rust programming language — a modern, type-safe, high-performance systems programming language focused on safety, concurrency, and speed. The core components are the `rustc` compiler, the `cargo` package manager and build system, and the `rustup` toolchain multiplexer/installer. Together they provide a complete development environment for building everything from embedded systems to web applications. Rust is developed in the open with a 6-week rapid release process, shipping stable, beta, and nightly release channels. The recommended and most common way to install the Rust toolchain is via `rustup`, which handles downloading, installing, updating, and switching between multiple Rust toolchains on any supported platform.
+
+- **Homepage**: https://www.rust-lang.org
+- **Source Code**: https://github.com/rust-lang/rust
+- **Documentation**: https://doc.rust-lang.org/
+- **Latest Release**: 1.96.0 (as of 2026-05-28)[^rust-release-1.96.0]
+
+## Tool Architecture
+
+The Rust toolchain has a layered architecture with several distinct components:
+
+- **`rustup`** — The toolchain multiplexer and installer. It is the primary entry point for managing Rust installations. `rustup` downloads and manages multiple Rust toolchains (stable, beta, nightly, or specific versions) and makes them available through a set of proxy binaries installed to a single `bin` directory (typically `~/.cargo/bin`). These proxies — `rustc`, `cargo`, `rustdoc`, etc. — automatically delegate to the currently active toolchain. This design is analogous to Ruby's `rbenv`, Python's `pyenv`, or Node's `nvm`.[^rustup-concepts]
+- **`rustc`** — The Rust compiler, which compiles Rust source code into machine code. It also includes `rustdoc`, the documentation generator. `rustc` is written in Rust and uses LLVM as its backend code generation framework.[^rustc-book]
+- **`cargo`** — The Rust package manager and build tool. It downloads dependencies from [crates.io](https://crates.io) (the Rust community package registry), compiles packages, runs tests, generates documentation, and publishes packages. Cargo is also written in Rust.[^cargo-book]
+- **Components** — Each toolchain includes several optional components managed via `rustup component`:[^rustup-components]
+  - `rustc` — The Rust compiler and Rustdoc (required)
+  - `cargo` — The package manager and build tool (required)
+  - `rust-std` — The Rust standard library for the host target (required)
+  - `rust-docs` — Local copy of Rust documentation
+  - `rust-analyzer` — Language server for IDE integration
+  - `clippy` — Linter providing extra checks for common mistakes
+  - `rustfmt` — Code formatter
+  - `miri` — Experimental Rust interpreter for checking undefined behavior
+  - `rust-src` — Local copy of the standard library source code
+  - `llvm-tools` — Collection of LLVM tools (unstable)
+  - `rustc-dev` — Compiler as a library
+  - `rust-mingw` — Linker and platform libraries for Windows GNU builds
+- **Profiles** — Named groupings of components that `rustup` uses to determine which components to install with a toolchain:[^rustup-profiles]
+  - `minimal` — Only `rustc`, `rust-std`, and `cargo`
+  - `default` — `minimal` plus `rust-docs`, `rustfmt`, and `clippy`
+  - `complete` — All components (not recommended; almost always fails)
+- **Channels** — Rust is released to three channels on a 6-week cadence:[^rustup-channels]
+  - `stable` — The current stable release, updated every 6 weeks
+  - `beta` — The next stable release, updated weekly
+  - `nightly` — Daily builds with experimental features
+
+The toolchain is self-contained: the `rustup` binary itself is a statically-linked Rust executable that handles downloading and managing toolchain components from the official distribution servers (`https://static.rust-lang.org`). It does not rely on any runtime environment like the JVM, Node.js, or Python — the only system requirement is a C compiler and linker for compiling native code (provided by the system or installed separately). Cross-compilation to additional targets requires target-specific standard libraries (installed via `rustup target add`) and appropriate linkers/toolchains for the target platform.
+
+## Installation Methods
+
+There are several ways to install the Rust toolchain. The primary and recommended method is via `rustup` (the `rustup-init` script/executable). Alternative methods include using OS package managers, standalone installers (offline tarballs, MSI, PKG), and building from source. This section covers all major installation methods.
+
+### `rustup-init` (Recommended)
+
+#### Supported Platforms
+
+- **Full support**: recent versions of Debian/Ubuntu, RedHat Enterprise Linux, Fedora, CentOS, AlmaLinux, RockyLinux, Mariner, and other glibc-based Linux distributions with `apt`, `dnf`, `yum`, `microdnf`, or `tdnf` package managers.
+- **macOS**: x86_64 (Intel) and aarch64 (Apple Silicon) with macOS 10.13+
+- **Windows**: x86_64, i686, and aarch64 via `rustup-init.exe` (requires MSVC build tools or MSYS2/MinGW for GNU builds)
+- **FreeBSD, NetBSD, illumos, Solaris**: via the Unix shell script
+- **Alpine Linux**: `rustup` binary distributions are available for `x86_64-unknown-linux-musl` and `aarch64-unknown-linux-musl` targets, but Alpine is **not** supported by the `rustup-init.sh` script because it requires `bash` and specific system utilities. Users on Alpine can manually download the musl-based `rustup-init` binary for their architecture.[^rustup-other-install]
+
+The official `rustup-init.sh` script performs automatic platform detection for the following OS/arch combinations (detected from `uname` and other system properties):[^rustup-init-sh]
+
+**Operating Systems:**
+- Linux (glibc and musl)
+- macOS (Darwin)
+- FreeBSD
+- NetBSD
+- DragonFly BSD
+- illumos
+- Solaris
+- Windows (via MINGW/MSYS/CYGWIN — detected as `pc-windows-gnu`)
+- Android (Linux kernel with Android userland)
+
+**CPU Architectures:**
+- `x86_64` (amd64)
+- `i686` (32-bit x86)
+- `aarch64` (ARM 64-bit)
+- `armv7` (ARM v7 with hard-float)
+- `arm` (ARM v6 with hard-float)
+- `riscv64gc` (RISC-V 64-bit)
+- `loongarch64` (LoongArch 64-bit)
+- `powerpc`, `powerpc64`, `powerpc64le`
+- `s390x`
+- `mips`, `mips64`, `mipsel`, `mips64el`
+- `sparcv9` (Solaris)
+
+#### Dependencies
+
+##### Common Dependencies
+
+- **`curl`** or **`wget`** — One of these must be available for downloading the `rustup-init` binary. The script prefers `curl` but falls back to `wget`.[^rustup-init-sh]
+- **`sh`** (POSIX-compliant shell) — The initial `rustup-init.sh` script is a POSIX shell script.
+- **`uname`**, **`mktemp`**, **`chmod`**, **`mkdir`**, **`rm`**, **`rmdir`** — Standard POSIX utilities used during installation.[^rustup-init-sh]
+- **C compiler and linker** — Required for compiling Rust code. On Linux this is typically `gcc` or `clang` with `binutils`. On macOS this is `clang` (from Xcode Command Line Tools). On Windows with MSVC target, this requires Visual Studio build tools.[^rust-book-install]
+- **`rustup` executable architecture compatibility** — The pre-built `rustup-init` binary for the host target must be executable on the system. For Linux, this means glibc-based builds require glibc; musl-based builds require musl libc.[^rustup-dist-dir]
+
+##### Platform-Specific Dependencies
+
+- **Linux (glibc)**: `gcc` (`build-essential` on Debian/Ubuntu, `Development Tools` on RHEL/Fedora), `glibc-devel` (RHEL/Fedora) or `libc6-dev` (Debian/Ubuntu), `ca-certificates` (for HTTPS downloads), `git` (recommended for Cargo dependencies from git repositories).[^devcontainers-rust-install]
+- **Linux (musl/Alpine)**: `gcc`, `musl-dev`, `ca-certificates`, `git` — Note: `rustup-init.sh` does not support Alpine; the musl `rustup-init` binary must be downloaded manually.[^rustup-other-install]
+- **macOS**: Xcode Command Line Tools (`xcode-select --install`), which provides `clang`, `ld`, and other required build tools.[^rust-book-install]
+- **Windows (MSVC)**: Visual Studio 2017+ (or Visual C++ Build Tools) with "Desktop development with C++" workload, including MSVC v143 build tools and Windows SDK.[^rustup-msvc-prereqs]
+- **Windows (GNU)**: MSYS2 with MinGW toolchain.[^rustup-other-install]
+- **FreeBSD**: `gcc` (or `clang`), `binutils`
+
+#### Installation Steps
+
+The recommended installation process using `rustup-init` on Unix-like systems (Linux, macOS, FreeBSD, etc.) is:
+
+1. **Download and run the installer script** (non-interactive, accepting defaults):
+   ```sh
+   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+   ```
+   
+   Or with custom options:
+   ```sh
+   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- \
+     --default-toolchain stable \
+     --profile minimal \
+     --no-modify-path \
+     -y
+   ```
+
+2. **What the script does internally**:[^rustup-init-sh]
+   1. Detects the host platform (OS, CPU architecture, libc flavor) by examining `uname -s` and `uname -m`, ELF headers of `/proc/self/exe`, and other system properties.
+   2. Creates a temporary directory with `mktemp -d`.
+   3. Downloads the appropriate `rustup-init` binary for the detected target triple from `https://static.rust-lang.org/rustup/dist/{target-triple}/rustup-init` (or a custom `RUSTUP_UPDATE_ROOT`).
+   4. Makes the downloaded binary executable.
+   5. Runs the `rustup-init` binary, which:
+      - Detects or prompts for the installation configuration (default host triple, default toolchain, whether to modify PATH).
+      - Downloads and installs the requested toolchain from the release channel.
+      - Sets up proxy binaries in `~/.cargo/bin` (unless `--no-modify-path` is used).
+      - Creates or modifies shell profile files (`~/.profile`, `~/.bash_profile`, `~/.bashrc`, `~/.zshenv`) to add `~/.cargo/bin` to `PATH`.
+      - Creates the `~/.cargo/env` file for manual sourcing.
+   6. Removes the temporary directory and downloaded binary.
+
+3. **Source the environment** (if not using `--no-modify-path`, the script should have already modified shell profiles; but for immediate use in the current shell):
+   ```sh
+   . "$HOME/.cargo/env"
+   ```
+
+4. **Windows installation**:
+   - Download `rustup-init.exe` from https://win.rustup.rs (auto-detects architecture) or directly from https://static.rust-lang.org/rustup/dist/{target-triple}/rustup-init.exe
+   - Run the executable; it will detect MSVC build tools and prompt for configuration.
+   - Or run non-interactively: `rustup-init.exe -y --default-toolchain stable --profile minimal`
+   
+   The Windows installer works the same way as the Unix script — it downloads the appropriate toolchain and installs it.[^rustup-other-install]
+
+5. **Verify installation**:
+   ```sh
+   rustc --version
+   cargo --version
+   rustup --version
+   ```
+
+#### Installation Verification
+
+- **SHA-256 checksums**: The official `rustup-init` binaries are distributed alongside `.sha256` checksum files, available at the same download URL with `.sha256` appended. For example: `https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init.sha256`.[^rustup-other-install]
+- **Version check**: After installation, verify that `rustc --version`, `cargo --version`, and `rustup --version` report the expected versions and are executable from `~/.cargo/bin/`.
+- **Rust toolchain files**: The installed toolchain is stored under `~/.rustup/toolchains/` (or `$RUSTUP_HOME/toolchains/`). Installed components can be listed with `rustup component list`.
+- **`rustc --version` output example**:
+  ```
+  rustc 1.96.0 (f11c0e83e 2026-05-28)
+  ```
+- **`cargo --version` output example**:
+  ```
+  cargo 1.96.0 (9077a81b3 2026-05-28)
+  ```
+
+#### Configuration Options
+
+##### Version Selection
+
+The version of Rust to install is specified via the `--default-toolchain` argument to `rustup-init`:[^rustup-init-sh]
+
+- `--default-toolchain stable` — Install the latest stable release (default)
+- `--default-toolchain beta` — Install the latest beta release
+- `--default-toolchain nightly` — Install the latest nightly release
+- `--default-toolchain 1.85.0` — Install a specific version
+- `--default-toolchain nightly-2026-05-01` — Install a specific nightly by date
+- `--default-toolchain none` — Install `rustup` without installing any toolchain (useful for multi-stage setup)
+
+The RUSTUP_VERSION environment variable can also be set to pin the `rustup` version itself. If unset, the latest version of `rustup` is downloaded.[^rustup-init-sh]
+
+##### Installation Path
+
+The installation paths are controlled by two environment variables:[^rustup-env-vars]
+
+- `CARGO_HOME` (default: `~/.cargo` or `%USERPROFILE%\.cargo`) — Location of Cargo's cache, configuration, and installed binaries. The `bin/` subdirectory contains the proxy binaries and is the primary entry point for all Rust tools.
+- `RUSTUP_HOME` (default: `~/.rustup` or `%USERPROFILE%\.rustup`) — Location where `rustup` stores installed toolchains, configuration, and metadata.
+
+These must be set before running `rustup-init`. If set, they must also be persisted in the environment for subsequent `rustup` and `cargo` usage. The `CARGO_HOME/bin` directory must be on `PATH` for tools to be accessible.[^rustup-env-vars]
+
+##### User Targeting
+
+- **User-local installation (default)**: `rustup-init` installs to the user's home directory (`~/.cargo`, `~/.rustup`) and does not require root privileges. This is the recommended and default mode.[^rust-book-install]
+- **System-wide installation**: By setting `CARGO_HOME` and `RUSTUP_HOME` to system-wide locations (e.g., `/usr/local/cargo` and `/usr/local/rustup`) and running with appropriate permissions, a system-wide installation is possible. This is how many devcontainer features install Rust.[^devcontainers-rust-install]
+
+##### Required Privileges
+
+- **User-local installation**: No special privileges required — `rustup-init` writes only to the user's home directory.[^rust-book-install]
+- **System-wide installation**: Requires `root`/`sudo` privileges to create and write to system directories.
+
+##### Tool-Specific Configurations
+
+The `rustup-init` executable accepts the following command-line flags:[^rustup-init-sh]
+
+| Flag | Description |
+|------|-------------|
+| `-y`, `--yes` | Disable the confirmation prompt (non-interactive) |
+| `-v`, `--verbose` | Enable verbose (DEBUG-level) logging |
+| `-q`, `--quiet` | Disable progress output, set log level to `WARN` |
+| `--default-host <HOST>` | Override the detected host target triple (e.g., `x86_64-pc-windows-gnu`) |
+| `--default-toolchain <TOOLCHAIN>` | Set the default toolchain to install (e.g., `stable`, `nightly`, `1.85.0`, `none`) |
+| `--profile <PROFILE>` | Select the install profile: `minimal`, `default`, or `complete` |
+| `-c`, `--component <COMPONENT>` | Comma-separated list of additional components to install (e.g., `rust-analyzer,clippy`) |
+| `-t`, `--target <TARGET>` | Comma-separated list of additional targets to install (e.g., `wasm32-unknown-unknown`) |
+| `--no-update-default-toolchain` | Don't update any existing default toolchain |
+| `--no-modify-path` | Don't modify `PATH` environment variable or shell profile files |
+
+**Environment variables** affecting `rustup` behavior (can be set before running `rustup-init`):[^rustup-env-vars]
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `RUSTUP_HOME` | `~/.rustup` | Root directory for rustup data |
+| `CARGO_HOME` | `~/.cargo` | Root directory for Cargo data |
+| `RUSTUP_DIST_SERVER` | `https://static.rust-lang.org` | Root URL for downloading Rust distribution artifacts (for mirrors) |
+| `RUSTUP_UPDATE_ROOT` | `https://static.rust-lang.org/rustup` | Root URL for downloading rustup self-updates |
+| `RUSTUP_VERSION` | (none) | Pins a specific rustup version to install |
+| `RUSTUP_TOOLCHAIN` | (none) | Overrides the active toolchain for all invocations |
+| `RUSTUP_AUTO_INSTALL` | `1` | Auto-install missing toolchains (set to `0` to disable) |
+| `RUSTUP_DOWNLOAD_TIMEOUT` | `180` | Timeout in seconds for component downloads (unstable) |
+| `RUSTUP_CONCURRENT_DOWNLOADS` | `2` | Number of concurrent downloads (unstable) |
+| `RUSTUP_IO_THREADS` | auto (max 8) | Number of IO threads for unpacking (unstable) |
+| `RUSTUP_TERM_COLOR` | `auto` | Color output: `auto`, `always`, or `never` |
+| `RUSTUP_TERM_PROGRESS_WHEN` | `auto` | Progress bar display: `always`, `never`, or `auto` |
+
+#### Post-Installation Steps and Cleanup
+
+##### PATH Setup
+
+After installation, the `bin` directory within `CARGO_HOME` (typically `~/.cargo/bin` on Unix or `%USERPROFILE%\.cargo\bin` on Windows) must be added to `PATH` for the Rust tools to be accessible from the command line. When running `rustup-init` with the default settings (without `--no-modify-path`), the installer automatically modifies the shell profile files to add this directory to `PATH`.[^rustup-installation]
+
+Files modified on Unix:
+- `~/.profile` (login shells)
+- `~/.bash_profile` (if exists) or `~/.bashrc` (if Bash)
+- `~/.zshenv` (if Zsh)
+
+The installer also creates `~/.cargo/env`, a shell script that can be sourced manually:
+```sh
+source "$HOME/.cargo/env"
+```
+
+If `--no-modify-path` was used, the system administrator must ensure `CARGO_HOME/bin` is on `PATH` through other means (e.g., by adding it to `/etc/environment`, `/etc/profile.d/`, or shell initialization files).
+
+For **system-wide installations**, the PATH should typically be configured via `/etc/profile.d/` scripts or `/etc/environment`.
+
+##### Configuration Files
+
+`rustup` stores its configuration in a TOML file at `$RUSTUP_HOME/settings.toml` (default: `~/.rustup/settings.toml`). The schema is not part of the public interface — the `rustup` CLI should be used to query and set settings rather than editing the file directly. On Unix, a fallback settings file `/etc/rustup/settings.toml` can define `default_toolchain`.[^rustup-config]
+
+##### Environment Variables
+
+The following environment variables should be set persistently for all users of the Rust toolchain (typically via shell profile files or `/etc/environment`):[^rustup-env-vars]
+
+- `CARGO_HOME=/usr/local/cargo` (if using system-wide install)
+- `RUSTUP_HOME=/usr/local/rustup` (if using system-wide install)
+- `PATH` must include `$CARGO_HOME/bin` (e.g., `export PATH="$CARGO_HOME/bin:$PATH"`)
+
+##### Activation Scripts
+
+The `~/.cargo/env` file (on Unix) or the PATH modifications made by the installer serve as the activation mechanism. There is no separate activation script or virtual environment activation required.
+
+##### Shell Completions
+
+`rustup` supports generating completion scripts for Bash, Fish, Zsh, and PowerShell. After installation, completions can be generated with:[^rustup-installation]
+
+```sh
+# Bash
+rustup completions bash > /usr/share/bash-completion/completions/rustup
+
+# Bash (macOS/Homebrew)
+rustup completions bash > $(brew --prefix)/etc/bash_completion.d/rustup.bash-completion
+
+# Fish
+mkdir -p ~/.config/fish/completions
+rustup completions fish > ~/.config/fish/completions/rustup.fish
+
+# Zsh
+mkdir -p ~/.zfunc
+rustup completions zsh > ~/.zfunc/_rustup
+# Then add in ~/.zshrc: fpath+=~/.zfunc (before compinit)
+
+# PowerShell
+rustup completions powershell >> $PROFILE.CurrentUserCurrentHost
+```
+
+##### Cleanup
+
+The `rustup-init.sh` script automatically removes the temporary directory and downloaded binary after installation. No further cleanup is necessary for a successful installation. If the download fails or is interrupted, temporary files may remain in `/tmp/` — these can be safely deleted manually.
+
+#### Changing Versions and Uninstallation
+
+##### Upgrading/Downgrading
+
+- **Upgrading to the latest release**: `rustup update` — updates all installed toolchains to their latest versions and updates `rustup` itself.
+- **Installing additional toolchains**: `rustup toolchain install <toolchain>` (e.g., `rustup toolchain install nightly`).
+- **Changing the default toolchain**: `rustup default <toolchain>` (e.g., `rustup default nightly` or `rustup default 1.85.0`).
+- **Using a specific toolchain per project**: `rustup override set <toolchain>` in a project directory, or use a `rust-toolchain.toml` / `rust-toolchain` file in the project root.
+
+Multiple toolchains can coexist. Changing versions does not affect existing configuration files or environment variable settings — only the proxies in `CARGO_HOME/bin` are updated/repointed.[^rustup-toolchains]
+
+##### Uninstallation
+
+To completely remove `rustup` and all installed toolchains:[^rustup-installation]
+
+```sh
+rustup self uninstall
+```
+
+This command removes:
+- All installed toolchains and their components
+- The `RUSTUP_HOME` directory
+- The `CARGO_HOME` directory (including all Cargo-installed binaries, projects, and caches)
+- Shell profile modifications made during installation
+
+To manually uninstall (without `rustup`):
+- Remove the `~/.rustup` (`%USERPROFILE%\.rustup`) and `~/.cargo` (`%USERPROFILE%\.cargo`) directories
+- Remove `~/.cargo/bin` from `PATH` in shell profile files
+- Remove any `rustup` completions scripts
+
+Uninstallation requires no special privileges for user-local installations. For system-wide installations, root privileges are required.
+
+##### Idempotency
+
+Running `rustup-init` on a system where `rustup` is already installed will produce a warning and skip the installation, unless `-y` is used, in which case it checks for self-updates and performs them if needed. The toolchain installation itself is idempotent — running `rustup toolchain install stable` when stable is already at the latest version will be a no-op. When a specific version is requested and already installed, it will not be re-downloaded. The `rustup update` command is also idempotent — it only downloads toolchain updates when newer versions are available.
+
+#### Details
+
+The `rustup-init.sh` script (≈926 lines of POSIX shell code) performs the following detailed sequence:[^rustup-init-sh]
+
+1. **Platform detection** (`get_architecture` function):
+   - Runs `uname -s` to get the OS type (Linux, Darwin, FreeBSD, etc.)
+   - Runs `uname -m` to get the CPU architecture
+   - For Linux: detects musl vs glibc by checking `ldd --version` output
+   - For macOS: uses `sysctl` to detect Rosetta 2 (arm64 emulation on Apple Silicon) and the actual architecture
+   - For Windows MINGW/MSYS: detected via `uname -s` patterns
+   - Determines 32-bit vs 64-bit userland by examining the ELF header of `/proc/self/exe`
+   - On armv7 Linux, checks `/proc/cpuinfo` for NEON/SIMD support
+   - Returns a target triple like `x86_64-unknown-linux-gnu`
+
+2. **Downloader selection** (`downloader` function):
+   - Prefers `curl` over `wget`, with security checks:
+     - For `curl`: uses `--proto '=https' --tlsv1.2` to enforce HTTPS and TLS 1.2+
+     - For `wget`: uses `--https-only --secure-protocol=TLSv1_2`
+     - Supports `--retry 3 -C -` for curl to resume interrupted downloads
+     - Enforces strong TLS cipher suites (AES-128-GCM, CHACHA20-POLY1305, AES-256-GCM) via `--ciphers`
+   - Detects "snap" curl on Linux and refuses to use it due to sandboxing restrictions
+
+3. **Binary download**:
+   - Constructs the download URL: `$RUSTUP_UPDATE_ROOT/dist/$ARCH/rustup-init` (or with `$RUSTUP_VERSION` under `archive/` subpath)
+   - Downloads the `rustup-init` binary and makes it executable
+
+4. **Execution**:
+   - If stdin is not a terminal (piped script scenario), connects `/dev/tty` to the installer's stdin for interactive prompts
+   - Runs the downloaded `rustup-init` binary with any passed arguments and the auto-detected `--default-host` flag (for Windows)
+   - On success, removes the temporary files
+
+The official `rustup-init` and `rustup` executables are themselves written in Rust. The source code is at https://github.com/rust-lang/rustup.
+
+#### Notes and Best Practices
+
+- **Non-interactive installation**: Always use the `-y` flag when automating installation in scripts or containers: `sh -s -- -y`.
+- **Installation profiles**: For CI/CD environments or containers where disk space is at a premium, use `--profile minimal`, which only installs `rustc`, `cargo`, and `rust-std`. The `default` profile is recommended for interactive development.
+- **Avoiding PATH modification**: Use `--no-modify-path` in container environments where PATH is managed independently.
+- **Alpine Linux**: Use the `x86_64-unknown-linux-musl` `rustup-init` binary directly instead of the `rustup-init.sh` script.
+- **Running as root**: Installing `rustup` as root and then running `cargo install` or `rustup` should be avoided for security reasons. When system-wide installation is needed, install as root and create a dedicated group (e.g., `rustlang`) with appropriate permissions.[^devcontainers-rust-install]
+- **OverlayFS / Docker**: On OverlayFS (common in Docker), file renames can produce cross-device link errors. Set `RUSTUP_PERMIT_COPY_RENAME=1` to work around this (though it sacrifices some transactional protections).[^rustup-env-vars]
+- **Nightly component availability**: Nightly builds may be missing certain non-default components. Use `rustup toolchain install nightly --allow-downgrade --profile minimal --component clippy` to install a nightly toolchain that includes specific components even if the latest nightly doesn't have them.[^rustup-installation]
+- **GPG signatures**: Standalone installers are signed with the Rust signing key, but `rustup` itself does not verify these signatures — it relies on HTTPS for transport security.
+
+### Standalone Installers
+
+#### Supported Platforms
+
+Standalone installers are available for all Tier 1 and Tier 2 Rust targets. They come in three forms:[^forge-standalone-installers]
+
+- **Unix-like** (Linux, macOS, FreeBSD, etc.): `.tar.xz` archives
+- **Windows**: `.msi` installers
+- **macOS**: `.pkg` installers
+
+#### Dependencies
+
+Same as `rustup-init` — requires a C compiler and linker for compiling Rust code. No additional dependencies beyond system libraries.
+
+#### Installation Steps
+
+1. Download the appropriate standalone installer for the target channel and platform from `https://static.rust-lang.org/dist/`.
+2. Extract the archive:
+   ```sh
+   curl -LO https://static.rust-lang.org/dist/rust-1.96.0-x86_64-unknown-linux-gnu.tar.xz
+   tar -xf rust-1.96.0-x86_64-unknown-linux-gnu.tar.xz
+   cd rust-1.96.0-x86_64-unknown-linux-gnu
+   ```
+3. Run the installation script:
+   ```sh
+   sudo ./install.sh
+   ```
+   (The `install.sh` script accepts `--prefix=` to customize the installation path.)
+4. On Windows, run the `.msi` installer (graphical).
+5. On macOS, run the `.pkg` installer (graphical).
+
+#### Installation Verification
+
+Standalone installers are signed with the Rust GPG signing key. Signatures (`.asc` files) are available alongside the downloads. GPG verification can be done with:
+```sh
+gpg --verify rust-1.96.0-x86_64-unknown-linux-gnu.tar.xz.asc
+```
+
+The Rust signing key is available at https://static.rust-lang.org/rust-key.gpg.ascii.
+
+#### Configuration Options
+
+- **Installation prefix** (Unix): `./install.sh --prefix=/usr/local`
+- **Channel selection**: Download the appropriate version from the release archive
+
+#### Post-Installation Steps and Cleanup
+
+Standalone installers place binaries in `/usr/local/bin` by default. Ensure this directory is on `PATH`. No configuration files are automatically created.
+
+#### Changing Versions and Uninstallation
+
+Standalone installers do not support version management. To uninstall, run the uninstall script included in the installed directory or remove the files manually. Different versions cannot easily coexist — `rustup` is recommended for this.
+
+#### Notes and Best Practices
+
+Standalone installers are primarily intended for offline installation or for users who prefer not to use `rustup`. They do not provide the following `rustup` features:
+- Multiple toolchain management
+- Cross-compilation target management
+- Easy version switching
+- Automatic updates via `rustup update`
+
+### OS Package Manager Installation
+
+#### Supported Platforms
+
+- **Debian/Ubuntu**: `apt install rustup` (available on Debian 13+ and Ubuntu 24.04+)
+- **macOS**: `brew install rustup` (Homebrew)
+- **Arch Linux**: `pacman -S rustup`
+- **Fedora/RHEL**: `dnf install rustup` (rustup-init provided)
+
+Note: These packages are maintained by the respective distributions, not by the Rust project. The `rustup` package installs the `rustup-init` command, which must then be run to actually install a Rust toolchain.[^rustup-other-install]
+
+#### Dependencies
+
+Same as the respective OS package manager's requirements, plus the same build dependencies as `rustup-init`.
+
+#### Installation Steps
+
+```sh
+# Debian/Ubuntu 24.04+
+sudo apt update && sudo apt install -y rustup
+rustup default stable
+
+# macOS (Homebrew)
+brew install rustup
+rustup default stable
+
+# Arch Linux
+sudo pacman -S rustup
+rustup default stable
+
+# Fedora
+sudo dnf install rustup
+rustup-init -y
+```
+
+#### Installation Verification
+
+Same as `rustup-init` — `rustc --version`, `cargo --version`, `rustup --version`.
+
+#### Notes and Best Practices
+
+- The system package manager version of `rustup` may lag behind the latest release. Consider using the official `rustup-init.sh` script for the most up-to-date version.
+- On Debian-based systems, the `rustup` package installs the `rustup-init` command, which then needs to be run to complete installation. Some distributions (APT on Debian 13+, pacman) provide the `rustup` command with proxies for Rust tools directly.
+- The Homebrew `rustup` formula is keg-only — the `rustup` binary is not linked into `/usr/local/bin` by default. Add `$(brew --prefix rustup)/bin` to `PATH` if needed.
+
+## Dev Container Setup
+
+When installing the Rust toolchain in a devcontainer environment, the following considerations apply:
+
+- **Base images**: The feature should work on Debian/Ubuntu, RHEL/Fedora, and other glibc-based Linux distributions that have `apt`, `dnf`, `yum`, `microdnf`, or `tdnf` available. Alpine Linux is **not** supported via the `rustup-init.sh` script due to musl incompatibility with the default glibc-based `rustup-init` binary. (Separate musl binaries exist but require manual handling.)[^devcontainers-rust-readme]
+- **System-wide installation**: In a devcontainer, Rust should typically be installed system-wide (to `/usr/local/cargo` and `/usr/local/rustup`) rather than to a user's home directory. This ensures that the toolchain is available to all users and persists across container rebuilds.[^devcontainers-rust-install]
+- **The `rustlang` group**: The official devcontainers Rust feature creates a `rustlang` group and makes the `CARGO_HOME` and `RUSTUP_HOME` directories group-writable so that non-root users can install Cargo packages and manage toolchains.[^devcontainers-rust-install]
+- **`SYS_PTRACE` capability**: The official devcontainers Rust feature requests the `SYS_PTRACE` capability, which is needed by `rust-lldb` and other debugging tools for process tracing. The `seccomp=unconfined` security option may also be required.[^devcontainers-rust-json]
+- **`--no-modify-path`**: In containers, it's best practice to use `--no-modify-path` to avoid modifying shell profiles, since the devcontainer environment typically manages PATH via `/etc/profile.d/` or `containerEnv` in `devcontainer.json`.
+- **`containerEnv`**: The official devcontainers Rust feature sets `CARGO_HOME`, `RUSTUP_HOME`, and PATH via `containerEnv` in `devcontainer-feature.json`, which ensures these are set correctly for all users without relying on shell profile files.[^devcontainers-rust-json]
+- **Platform architecture detection**: Container environments may use `dpkg --print-architecture` (Debian-based) or `uname -m` to determine the architecture for downloading the correct `rustup-init` binary. The mapping is: `amd64`/`x86_64` → `x86_64`, `arm64`/`aarch64` → `aarch64`.[^devcontainers-rust-install]
+- **SHA-256 verification**: The official devcontainers Rust feature downloads and verifies the SHA-256 checksum of the `rustup-init` binary before execution to ensure integrity.[^devcontainers-rust-install]
+- **Official devcontainer Rust image**: A pre-built Rust devcontainer image is available at `mcr.microsoft.com/devcontainers/rust:latest` (based on Debian). This image already has the Rust toolchain installed and is ready to use without additional features.[^devcontainers-rust-image]
+- **Recommended VS Code extensions** (from the official feature):[^devcontainers-rust-json]
+  - `rust-lang.rust-analyzer` — Rust language server
+  - `vadimcn.vscode-lldb` — Native debugger
+  - `tamasfe.even-better-toml` — TOML file support
+
+## Plugins and Extensions
+
+### rust-analyzer
+
+**rust-analyzer** is a language server for Rust that provides IDE features such as code completion, go-to-definition, find references, inline documentation, refactoring, and more. It is the official successor to the now-deprecated RLS (Rust Language Server).
+
+- **Homepage**: https://rust-analyzer.github.io/
+- **Source Code**: https://github.com/rust-lang/rust-analyzer
+- **Documentation**: https://rust-analyzer.github.io/manual.html
+- **Installation**: rust-analyzer is available as a Rustup component:
+  ```sh
+  rustup component add rust-analyzer
+  ```
+  The server binary is installed to `$CARGO_HOME/bin/rust-analyzer`. Editor integration varies:
+  - **VS Code**: Install the `rust-lang.rust-analyzer` extension
+  - **Vim/Neovim**: Use the `rust-analyzer` language server with `coc.nvim`, `vim-lsp`, or `nvim-lspconfig`
+  - **Emacs**: Use `eglot` or `lsp-mode`
+  - **Helix**: Built-in support for rust-analyzer
+- **Configuration**: rust-analyzer is configured via `.vscode/settings.json` (in VS Code) or via LSP client configuration in other editors. Key settings include `rust-analyzer.cargo.allFeatures` (default: `false`), `rust-analyzer.check.command` (default: `check`), and `rust-analyzer.linkedProjects`.
+
+### Clippy
+
+**Clippy** is the official Rust linter, providing a vast collection of checks for common mistakes and stylistic issues. It is distributed as a Rustup component.
+
+- **Homepage**: https://github.com/rust-lang/rust-clippy
+- **Documentation**: https://doc.rust-lang.org/clippy/
+- **Installation**: `rustup component add clippy`
+- **Usage**: `cargo clippy` or `cargo clippy --fix` to auto-fix issues
+- **Configuration**: Configured via `clippy.toml` or `.clippy.toml` files, or through `[lints.clippy]` sections in `Cargo.toml`. Individual lint levels can be controlled with `#[allow(clippy::some_lint)]`, `#[warn(clippy::some_lint)]`, etc.
+
+### Rustfmt
+
+**Rustfmt** is the official Rust code formatter, ensuring consistent code style across projects.
+
+- **Homepage**: https://github.com/rust-lang/rustfmt
+- **Documentation**: https://doc.rust-lang.org/rustfmt/
+- **Installation**: `rustup component add rustfmt`
+- **Usage**: `cargo fmt` to format all files, `cargo fmt --check` to verify formatting
+- **Configuration**: Configured via `rustfmt.toml` or `.rustfmt.toml` files. Common options include `max_width`, `tab_spaces`, `edition`, and `imports_granularity`.
+
+## References
+
+[^rust-release-1.96.0]: [Rust Releases — 1.96.0 - GitHub](https://github.com/rust-lang/rust/releases/tag/1.96.0). The latest stable Rust release as of this writing (2026-07-01). Also verified at [releases.rs](https://releases.rs/).
+
+[^rustup-concepts]: [The rustup book — Concepts](https://rust-lang.github.io/rustup/concepts/index.html). Overview of how rustup works, including toolchain multiplexing, proxy binaries, and terminology.
+
+[^rustc-book]: [The rustc book](https://doc.rust-lang.org/rustc/). Official documentation for the Rust compiler, including its architecture and LLVM backend.
+
+[^cargo-book]: [The Cargo Book](https://doc.rust-lang.org/cargo/). Official documentation for Cargo, the Rust package manager.
+
+[^rustup-components]: [The rustup book — Components](https://rust-lang.github.io/rustup/concepts/components.html). Lists all available rustup components and their descriptions.
+
+[^rustup-profiles]: [The rustup book — Profiles](https://rust-lang.github.io/rustup/concepts/profiles.html). Documentation on rustup install profiles (minimal, default, complete).
+
+[^rustup-channels]: [The rustup book — Channels](https://rust-lang.github.io/rustup/concepts/channels.html). Description of the stable, beta, and nightly release channels.
+
+[^rustup-other-install]: [The rustup book — Other installation methods](https://rust-lang.github.io/rustup/installation/other.html). Direct download links for rustup-init binaries for all supported platforms, SHA-256 checksum information, and package manager installation instructions.
+
+[^rustup-init-sh]: [rustup-init.sh source code — GitHub](https://github.com/rust-lang/rustup/blob/main/rustup-init.sh). Full source code (926 lines) of the POSIX shell installer script. Contains all platform detection logic, downloader implementation, and installation orchestration.
+
+[^rustup-dist-dir]: [Rustup distribution directory — static.rust-lang.org](https://static.rust-lang.org/rustup/dist/). Listing of all available rustup-init binaries by target triple.
+
+[^rust-book-install]: [The Rust Programming Language — Installation](https://doc.rust-lang.org/book/ch01-01-installation.html). Official Rust book's installation chapter, describing system requirements (C compiler, linker) and the rustup installation process.
+
+[^rustup-installation]: [The rustup book — Installation](https://rust-lang.github.io/rustup/installation/index.html). Covers the standard installation process, environment setup, tab completions, and uninstallation.
+
+[^rustup-msvc-prereqs]: [The rustup book — MSVC prerequisites](https://rust-lang.github.io/rustup/installation/windows-msvc.html). Detailed prerequisites for using Rust on Windows with the MSVC toolchain, including Visual Studio installation walkthrough.
+
+[^rustup-env-vars]: [The rustup book — Environment variables](https://rust-lang.github.io/rustup/environment-variables.html). Comprehensive list of all environment variables supported by rustup.
+
+[^rustup-config]: [The rustup book — Configuration](https://rust-lang.github.io/rustup/configuration.html). Information about rustup's settings.toml configuration file.
+
+[^rustup-toolchains]: [The rustup book — Toolchains](https://rust-lang.github.io/rustup/concepts/toolchains.html). Documentation on toolchain naming, specification, and management.
+
+[^devcontainers-rust-install]: [devcontainers/features — Rust install.sh](https://github.com/devcontainers/features/blob/main/src/rust/install.sh). The official devcontainers Rust feature installation script. Illustrates system-wide installation, group/permission setup, SHA-256 verification, and component/target management.
+
+[^devcontainers-rust-readme]: [devcontainers/features — Rust README](https://github.com/devcontainers/features/tree/main/src/rust). Official devcontainers Rust feature documentation, including OS support notes and Alpine Linux incompatibility.
+
+[^devcontainers-rust-json]: [devcontainers/features — Rust devcontainer-feature.json](https://github.com/devcontainers/features/blob/main/src/rust/devcontainer-feature.json). Metadata for the official devcontainers Rust feature, including options, containerEnv, capabilities, and VS Code extension recommendations.
+
+[^devcontainers-rust-image]: [microsoft/devcontainers-rust — Docker Hub](https://hub.docker.com/r/microsoft/devcontainers-rust). Pre-built Rust devcontainer images on Docker Hub.
+
+[^forge-standalone-installers]: [Rust Forge — Other Installation Methods](https://forge.rust-lang.org/infra/other-installation-methods.html). Official documentation on standalone installers, source code downloads, and GPG signature verification.
