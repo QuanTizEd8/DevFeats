@@ -206,10 +206,10 @@ The `rustup-init` executable accepts the following command-line flags:[^rustup-i
 | `-V`, `--version` | Print version information and exit |
 | `-y`, `--yes` | Disable the confirmation prompt (non-interactive) |
 | `-v`, `--verbose` | Enable verbose (DEBUG-level) logging |
-| `-q`, `--quiet` | Disable progress output, set log level to `WARN` |
+| `-q`, `--quiet` | Disable progress output, set log level to `WARN` (if `RUSTUP_LOG` is unset) |
 | `--default-host <HOST>` | Override the detected host target triple (e.g., `x86_64-pc-windows-gnu`) |
 | `--default-toolchain <TOOLCHAIN>` | Set the default toolchain to install (e.g., `stable`, `nightly`, `1.85.0`, `none`) |
-| `--profile <PROFILE>` | Select the install profile: `minimal` (default: `default`), `default`, or `complete` |
+| `--profile <PROFILE>` | Select the install profile: `minimal`, `default`, or `complete` (default: `default`) |
 | `-c`, `--component <COMPONENT>` | Comma-separated list of additional components to install (e.g., `rust-analyzer,clippy`) |
 | `-t`, `--target <TARGET>` | Comma-separated list of additional targets to install (e.g., `wasm32-unknown-unknown`) |
 | `--no-update-default-toolchain` | Don't update any existing default toolchain |
@@ -234,11 +234,11 @@ The `rustup-init` executable accepts the following command-line flags:[^rustup-i
 | `RUSTUP_PERMIT_COPY_RENAME` *(unstable)* | (unset) | Permit copy+rename in place of atomic rename on OverlayFS (Docker) — sacrifices transactional safety[^rustup-env-vars] |
 | `RUSTUP_LOG` | (none) | Custom logging mode with `tracing_subscriber` directive syntax |
 | `RUSTUP_NO_BACKTRACE` | (none) | Disable backtraces on non-panic errors |
-| `RUSTUP_UNPACK_RAM` *(unstable)* | auto | Caps RAM (in MB) used for IO during unpacking |
+| `RUSTUP_UNPACK_RAM` *(unstable)* | free memory or 500MiB, min 210MiB | Caps RAM (in bytes) used for IO during unpacking |
 | `RUSTUP_TRACE_DIR` *(unstable)* | (none) | Enable tracing output directory |
 | `RUSTUP_HARDLINK_PROXIES` *(unstable)* | (unset) | Force hardlinks instead of symlinks for proxy binaries |
-| `RUSTUP_TERM_WIDTH` | auto | Override terminal width for progress bars |
-| `RUSTUP_TOOLCHAIN_SOURCE` *(unstable)* | (none) | Tells proxied tools how the toolchain was determined |
+| `RUSTUP_TERM_WIDTH` | (none) | Override terminal width for progress bars |
+| `RUSTUP_TOOLCHAIN_SOURCE` *(unstable)* | (none) | Set by rustup to tell proxied tools how the toolchain was determined; should not be set manually |
 
 #### Post-Installation Steps and Cleanup
 
@@ -352,7 +352,7 @@ The `rustup-init.sh` script (≈930 lines of POSIX shell code) performs the foll
    - Runs `uname -s` to get the OS type (Linux, Darwin, FreeBSD, etc.)
    - Runs `uname -m` to get the CPU architecture
    - For Linux: detects musl vs glibc by checking `ldd --version` output
-   - For macOS: uses `sysctl` to detect Rosetta 2 (arm64 emulation on Apple Silicon) and the actual architecture
+   - For macOS: uses `sysctl` to detect Rosetta 2 (x86_64 emulation on Apple Silicon) and the actual architecture
    - For Windows MINGW/MSYS: detected via `uname -s` patterns
    - Determines 32-bit vs 64-bit userland by examining the ELF header of `/proc/self/exe`
    - On armv7 Linux, checks `/proc/cpuinfo` for NEON/SIMD support
@@ -401,7 +401,13 @@ Standalone installers are available for all Tier 1 and Tier 2 Rust targets. They
 
 #### Dependencies
 
+##### Common Dependencies
+
 Same as `rustup-init` — requires a C compiler and linker for compiling Rust code. No additional dependencies beyond system libraries.
+
+##### Platform-Specific Dependencies
+
+None unique to standalone installers.
 
 #### Installation Steps
 
@@ -530,7 +536,13 @@ Note: These packages are maintained by the respective distributions, not by the 
 
 #### Dependencies
 
+##### Common Dependencies
+
 Same as the respective OS package manager's requirements, plus the same build dependencies as `rustup-init`.
+
+##### Platform-Specific Dependencies
+
+None beyond the OS package manager itself.
 
 #### Installation Steps
 
