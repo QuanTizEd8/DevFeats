@@ -51,6 +51,8 @@ def _run_env(
         f"{host_root}/test/lib:/repo/test/lib:ro",
         "--bind",
         f"{host_root}/.dev/scripts/test:/repo/.dev/scripts/test:ro",
+        "--bind",
+        f"{host_root}/features/install-os-pkg/manifest.schema.json:/repo/features/install-os-pkg/manifest.schema.json:ro",
     ]
     for k, v in env_vars.items():
         cmd += ["--env", f"{k}={v}"]
