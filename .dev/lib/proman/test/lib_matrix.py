@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import shlex
 import subprocess
 import sys
@@ -26,6 +27,9 @@ def _run_env(
     env_vars = scenario.get("env_vars", {})
     cfg = load_config()
     root = cfg.root_path
+    # In CI the process runs inside a container where root may be /repo, but
+    # Docker bind-mount host paths must resolve on the actual runner host.
+    host_root = os.environ.get("HOST_REPO_ROOT", str(root))
     lib_dir = cfg.absolute_path("path.test_lib")
     test_files = expand_test_files(scenario.get("tests"), lib_dir)
     run_in_container = cfg.absolute_path("path.test_run_in_container")
@@ -42,11 +46,11 @@ def _run_env(
         "--name",
         f"test-unit-{name}",
         "--bind",
-        f"{root}/lib:/repo/lib:ro",
+        f"{host_root}/lib:/repo/lib:ro",
         "--bind",
-        f"{root}/test/lib:/repo/test/lib:ro",
+        f"{host_root}/test/lib:/repo/test/lib:ro",
         "--bind",
-        f"{root}/.dev/scripts/test:/repo/.dev/scripts/test:ro",
+        f"{host_root}/.dev/scripts/test:/repo/.dev/scripts/test:ro",
     ]
     for k, v in env_vars.items():
         cmd += ["--env", f"{k}={v}"]
