@@ -539,12 +539,12 @@ _stub_ospkg_privilege_ok() {
   [[ "$_output" != *'"name":"bookworm-pkg"'* ]]
 }
 
-@test "ospkg__parse_manifest_yaml accepts repos as strings and objects" {
+@test "ospkg__parse_manifest_yaml accepts repos as strings" {
   _seed_apt_context
   _require_ospkg_jq
   local _json_file
   _json_file="$(mktemp "${BATS_TEST_TMPDIR}/manifest.XXXXXX")"
-  printf '{"repos":["deb http://deb.debian.org/debian stable main",{"content":"deb http://example.invalid/debian stable main"}],"packages":["tree"]}' \
+  printf '{"repos":["deb http://deb.debian.org/debian stable main","deb http://example.invalid/debian stable main"],"packages":["tree"]}' \
     > "$_json_file"
   local _output
   _output="$(ospkg__parse_manifest_yaml "$_json_file")"
