@@ -558,7 +558,7 @@ When installing OpenCode in a Dev Container, the following considerations apply:
    tar -xzf /tmp/opencode.tar.gz -C /usr/local/bin/
    ```
 
-4. **Dependencies**: The install script requires `curl`, and on Linux, `tar`. The common-utils devcontainer feature provides these. For Alpine-based images, `curl` and `tar` must be installed explicitly if not already present. For the binary download approach, only `curl` and `tar` (or `wget`) are needed.
+4. **Dependencies**: The install script requires `curl`, and on Linux, `tar`. The common-utils devcontainer feature[^common-utils] provides these. For Alpine-based images, `curl` and `tar` must be installed explicitly if not already present. For the binary download approach, only `curl` and `tar` (or `wget`) are needed.
 
 5. **Architecture handling**: For arm64 containers (e.g., Apple Silicon Macs), use `opencode-linux-arm64.tar.gz`. For x86_64 containers, use `opencode-linux-x64.tar.gz`. For Alpine-based containers, use the `-musl` variants.
 
@@ -593,13 +593,13 @@ OpenCode supports several extension mechanisms:
 ## References
 
 [^docs-intro]: [OpenCode Documentation – Intro](https://opencode.ai/docs/) — Overview, prerequisites, installation, configuration, initialization, and usage guide.
-[^docs-install]: [OpenCode Documentation – Install](https://opencode.ai/docs/#install) — Detailed installation instructions including the install script, npm, Homebrew, AUR, Mise, and Docker methods.
 [^docs-config]: [OpenCode Documentation – Config](https://opencode.ai/docs/config/) — Configuration file reference for `opencode.json` (global config at `~/.config/opencode/opencode.json`), precedence order, and all configuration options.
 [^docs-providers]: [OpenCode Documentation – Providers](https://opencode.ai/docs/providers/) — LLM provider configuration and API key setup.
 [^docs-github]: [OpenCode Documentation – GitHub](https://opencode.ai/docs/github/) — GitHub agent installation and workflow configuration.
 [^docs-gitlab]: [OpenCode Documentation – GitLab](https://opencode.ai/docs/gitlab/) — GitLab integration documentation.
 [^docs-tui]: [OpenCode Documentation – TUI](https://opencode.ai/docs/tui/) — TUI usage guide covering commands, keybinds, configuration, and customization.
 [^docs-cli]: [OpenCode Documentation – CLI](https://opencode.ai/docs/cli/) — CLI commands reference.
+[^common-utils]: [Dev Container Common Utilities Feature](https://github.com/devcontainers/features/src/common-utils) — Provides common CLI tools (curl, tar, etc.) in dev container images.
 [^docs-plugins]: [OpenCode Documentation – Plugins](https://opencode.ai/docs/plugins/) — Plugin API and development guide.
 [^docs-mcp]: [OpenCode Documentation – MCP Servers](https://opencode.ai/docs/mcp-servers/) — Model Context Protocol server integration.
 [^docs-acp]: [OpenCode Documentation – ACP Support](https://opencode.ai/docs/acp/) — Agent Communication Protocol support.
@@ -611,7 +611,6 @@ OpenCode supports several extension mechanisms:
 [^src-package-json]: [Root package.json](https://github.com/anomalyco/opencode/blob/dev/package.json) — Project metadata, workspaces, dependency catalogs, and build configuration.
 [^src-config-ts]: [Config Source Code](https://github.com/anomalyco/opencode/blob/dev/packages/opencode/src/config/config.ts) — Source code showing the `globalConfigFile()` function and config loading logic with `opencode.json` as the primary config file and `config.json` as fallback.
 [^src-installation]: [Installation Service Source Code](https://github.com/anomalyco/opencode/blob/dev/packages/opencode/src/installation/index.ts) — Source code for the `Installation.Service` with the `upgrade()` method that dispatches to method-specific upgrade commands (curl, npm, brew, choco, scoop, etc.).
-[^src-upgrade-cli]: [Upgrade CLI Command Source Code](https://github.com/anomalyco/opencode/blob/dev/packages/opencode/src/cli/upgrade.ts) — Source code for the `opencode upgrade` CLI command.
 [^src-build]: [Build Script Source Code](https://github.com/anomalyco/opencode/blob/dev/packages/opencode/script/build.ts) — Source code for the CLI build script showing the use of `Bun.build` with `compile` option and the full target matrix (12 platform combinations).
 [^src-run]: [CLI Run Command Source Code](https://github.com/anomalyco/opencode/blob/dev/packages/opencode/src/cli/cmd/run.ts) — Source code for the CLI `run` command implementing interactive mode, Worker Thread initialization, and SSE/RPC-based communication between the TUI and the embedded HTTP server.
 [^npm-package]: [npm Registry – opencode-ai](https://registry.npmjs.org/opencode-ai/latest) — npm package metadata with optional platform-specific binary dependencies (12 platform targets).
