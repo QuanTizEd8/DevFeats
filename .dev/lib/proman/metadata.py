@@ -25,6 +25,28 @@ _SOURCE_MODIFIER_PM_HINTS = {
     "copr": frozenset({"dnf"}),
     "modules": frozenset({"dnf"}),
 }
+_INSTALL_ENTRY_KEYS = frozenset({"packages", "casks"})
+_AUTO_METHOD_RESTRICTION_KEYS = frozenset(
+    {
+        "os.id",
+        "os.id_like",
+        "os.version_id",
+        "os.version_id_major",
+        "os.version_codename",
+        "plat.kernel",
+        "plat.machine_release",
+    }
+)
+_EXPANDABLE_WHEN_KEYS = (
+    "plat.pm",
+    "os.id",
+    "os.id_like",
+    "os.version_id",
+    "os.version_id_major",
+    "os.version_codename",
+    "plat.kernel",
+    "plat.machine_release",
+)
 
 
 class MetadataLoader:
@@ -255,10 +277,64 @@ class MetadataLoader:
                         f"{missing_joined}."
                     )
 
+        errs.extend(self._validate_method_resolution_when(metadata))
+
         if errs:
             lines = ["Method manifest validation failed:"]
             lines.extend(f"  • {err}" for err in errs)
             raise ValueError("\n".join(lines))
+
+    def _validate_method_resolution_when(self, metadata: dict) -> list[str]:
+        """Ensure auto-resolution method guards are not broader than manifests."""
+        errs: list[str] = []
+        dependencies = metadata.get("_dependencies") or {}
+        method_options = (metadata.get("_options") or {}).get("method") or {}
+
+        for lifecycle in ("run", "build"):
+            manifests = dependencies.get(lifecycle) or {}
+            for method_id in ("package", "upstream-package"):
+                manifest = manifests.get(f"method-{method_id}")
+                option_when = (method_options.get(method_id) or {}).get("when")
+                if not manifest or not option_when:
+                    continue
+
+                support_clauses = _collect_install_support_clauses(manifest)
+                if not support_clauses:
+                    continue
+
+                for option_clause in _expand_when_clauses(option_when):
+                    clause_pms = _extract_pm_values(option_clause)
+                    if not clause_pms:
+                        continue
+
+                    for pm in sorted(clause_pms):
+                        compatible_support = [
+                            clause
+                            for clause in support_clauses
+                            if _clause_matches_pm(clause, pm)
+                            and _clauses_are_compatible(option_clause, clause)
+                        ]
+                        if not compatible_support:
+                            continue
+
+                        missing_keys = sorted(
+                            _common_restriction_keys(
+                                compatible_support,
+                                present_keys=frozenset(option_clause),
+                            )
+                        )
+                        if not missing_keys:
+                            continue
+
+                        errs.append(
+                            f"_options.method.{method_id}.when clause "
+                            f"{serialize_when_flow(option_clause)} is broader than "
+                            f"_dependencies.{lifecycle}.method-{method_id} support "
+                            f"for {pm}; add {', '.join(missing_keys)} or split "
+                            "the clause into narrower branches."
+                        )
+
+        return errs
 
     def _normalize_lifecycle_keys(self, metadata: dict) -> None:
         """Rewrite lifecycle hook map keys to ``<prefix><task>``.
@@ -399,3 +475,204 @@ def _format_path(path: tuple[str, ...]) -> str:
         else:
             rendered += f".{part}"
     return rendered
+
+
+def _collect_install_support_clauses(manifest: object) -> list[dict[str, object]]:
+    """Return effective install-support clauses emitted by a method manifest."""
+    clauses: list[dict[str, object]] = []
+
+    def visit(
+        node: object,
+        *,
+        parent_clauses: list[dict[str, object]] | None = None,
+    ) -> None:
+        current_parent = parent_clauses or [{}]
+
+        if isinstance(node, dict):
+            node_clauses = _combine_clause_sets(
+                current_parent,
+                _expand_when_clauses(node.get("when")),
+            )
+
+            for install_key in _INSTALL_ENTRY_KEYS:
+                entries = node.get(install_key)
+                if not isinstance(entries, list):
+                    continue
+                for entry in entries:
+                    entry_when = entry.get("when") if isinstance(entry, dict) else None
+                    clauses.extend(
+                        _combine_clause_sets(
+                            node_clauses,
+                            _expand_when_clauses(entry_when),
+                        )
+                    )
+
+            for key, value in node.items():
+                if key in _INSTALL_ENTRY_KEYS or key == "when":
+                    continue
+                child_clauses = node_clauses
+                if key in _PM_FAMILIES:
+                    child_clauses = _combine_clause_sets(
+                        node_clauses,
+                        [{"plat.pm": key}],
+                    )
+                visit(value, parent_clauses=child_clauses)
+            return
+
+        if isinstance(node, list):
+            for entry in node:
+                visit(entry, parent_clauses=current_parent)
+
+    visit(manifest)
+    return clauses
+
+
+def _expand_when_clauses(when: object) -> list[dict[str, object]]:
+    """Normalize an OR-when spec and split exact-value lists into distinct clauses."""
+    expanded: list[dict[str, object]] = []
+    for clause in _normalize_when_clauses(when):
+        expanded.extend(_expand_clause(clause))
+    return expanded or [{}]
+
+
+def _normalize_when_clauses(when: object) -> list[dict[str, object]]:
+    """Return a when-spec as a list of AND-clauses."""
+    if when is None:
+        return [{}]
+    if isinstance(when, dict):
+        return [when]
+    if isinstance(when, list):
+        clauses: list[dict[str, object]] = []
+        for clause in when:
+            clauses.extend(_normalize_when_clauses(clause))
+        return clauses or [{}]
+    return [{}]
+
+
+def _expand_clause(clause: dict[str, object]) -> list[dict[str, object]]:
+    """Expand exact-value lists in a clause into separate OR branches."""
+    clauses = [dict(clause)]
+    for key in _EXPANDABLE_WHEN_KEYS:
+        values = _extract_exact_values(clause.get(key))
+        if not values:
+            continue
+
+        normalized_values = sorted(values)
+        if len(normalized_values) == 1:
+            for entry in clauses:
+                entry[key] = normalized_values[0]
+            continue
+
+        expanded: list[dict[str, object]] = []
+        for entry in clauses:
+            for value in normalized_values:
+                new_entry = dict(entry)
+                new_entry[key] = value
+                expanded.append(new_entry)
+        clauses = expanded
+
+    return clauses
+
+
+def _combine_clause_sets(
+    left: list[dict[str, object]],
+    right: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    """Combine OR-clause sets by AND-ing each left/right pair."""
+    out: list[dict[str, object]] = []
+    for left_clause in left or [{}]:
+        for right_clause in right or [{}]:
+            merged = dict(left_clause)
+            merged.update(right_clause)
+            out.append(merged)
+    return out or [{}]
+
+
+def _clause_matches_pm(clause: dict[str, object], pm: str) -> bool:
+    """Return whether *clause* can apply to the given package-manager family."""
+    pm_condition = clause.get("plat.pm")
+    if pm_condition is None:
+        return True
+
+    exact_values = _extract_exact_values(pm_condition)
+    if exact_values is not None:
+        return pm in exact_values
+
+    excluded_values = _extract_excluded_values(pm_condition)
+    if excluded_values is not None:
+        return pm not in excluded_values
+
+    return True
+
+
+def _clauses_are_compatible(
+    option_clause: dict[str, object],
+    support_clause: dict[str, object],
+) -> bool:
+    """Return whether two when-clauses can match the same platform."""
+    shared_keys = frozenset(option_clause) & frozenset(support_clause)
+    for key in shared_keys:
+        if not _conditions_overlap(option_clause[key], support_clause[key]):
+            return False
+    return True
+
+
+def _conditions_overlap(left: object, right: object) -> bool:
+    """Return whether two scalar/list equality-style conditions can overlap."""
+    left_exact = _extract_exact_values(left)
+    right_exact = _extract_exact_values(right)
+    if left_exact is not None and right_exact is not None:
+        return bool(left_exact & right_exact)
+
+    left_excluded = _extract_excluded_values(left)
+    if left_excluded is not None and right_exact is not None:
+        return any(value not in left_excluded for value in right_exact)
+
+    right_excluded = _extract_excluded_values(right)
+    if right_excluded is not None and left_exact is not None:
+        return any(value not in right_excluded for value in left_exact)
+
+    return True
+
+
+def _extract_exact_values(value: object) -> frozenset[str] | None:
+    """Return exact match values from a condition, if it is equality-based."""
+    if isinstance(value, str):
+        return frozenset({value})
+
+    if isinstance(value, list):
+        members = {item for item in value if isinstance(item, str)}
+        return frozenset(members) if members else None
+
+    if isinstance(value, dict):
+        eq_value = value.get("eq")
+        if eq_value is None or "ne" in value:
+            return None
+        return _extract_exact_values(eq_value)
+
+    return None
+
+
+def _extract_excluded_values(value: object) -> frozenset[str] | None:
+    """Return exact values excluded by a ``ne`` condition, if derivable."""
+    if not isinstance(value, dict):
+        return None
+    ne_value = value.get("ne")
+    if ne_value is None or "eq" in value:
+        return None
+    return _extract_exact_values(ne_value)
+
+
+def _common_restriction_keys(
+    clauses: list[dict[str, object]],
+    *,
+    present_keys: frozenset[str],
+) -> frozenset[str]:
+    """Return restriction keys shared by every clause but absent from the option."""
+    if not clauses:
+        return frozenset()
+
+    common = set(_AUTO_METHOD_RESTRICTION_KEYS)
+    for clause in clauses:
+        common &= {key for key in clause if key in _AUTO_METHOD_RESTRICTION_KEYS}
+    return frozenset(common - set(present_keys))

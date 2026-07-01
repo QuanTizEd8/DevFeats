@@ -32,7 +32,12 @@ _options:
       gpg_key_uri: "https://raw.githubusercontent.com/${{ _options.gh_repo }}$/refs/heads/main/KEYS"
       when: {plat.machine_release: [amd64, arm64, armv7, ppc64le, s390x, riscv64, loong64]}
     package:
-      when: {plat.pm: [apt, apk, dnf, zypper]}
+      when:
+        - {plat.pm: [dnf, yum], os.id: fedora}
+        - {plat.pm: apt, os.id: debian}
+        - {plat.pm: apt, os.id: ubuntu, os.version_id: ["25.04", "25.10", "26.04"]}
+        - {plat.pm: apk}
+        - {plat.pm: zypper, os.id: [opensuse-tumbleweed, opensuse-slowroll]}
   prefix:
     bins: [oras]
     applies_when:
@@ -43,24 +48,12 @@ _dependencies:
       packages:
         - ca-certificates
     method-package:
-      # Installed via `ospkg_manifest_method_package_run` / `__dep_install_for_method__`.
-      # Keep this aligned with upstream package availability.
       packages:
-        # Fedora package name differs (`golang-oras` installs /usr/bin/oras).
         - name: golang-oras
           version: "{feat.pm_version}"
           when: {plat.pm: [dnf, yum], os.id: fedora}
-        # Alpine package name differs (`oras-cli` provides cmd:oras).
         - name: oras
           apk: oras-cli
           version: "{feat.pm_version}"
-          when:
-            - {plat.pm: [apk, brew]}
-            - {plat.pm: apt, os.id: debian}
-            - {plat.pm: apt, os.id: ubuntu, os.version_id: ["25.04", "25.10", "26.04"]}
-            - {plat.pm: zypper, os.id: [opensuse-tumbleweed, opensuse-slowroll]}
-      pacman:
-        scripts: |-
-          logging__error "method=package is unsupported on pacman because ORAS is not available in official Arch repositories."
-          return 1
+          when: {plat.pm: [apk, apt, brew, zypper]}
 # installsAfter: []

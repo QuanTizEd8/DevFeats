@@ -280,6 +280,100 @@ def test_load_rejects_upstream_package_pm_without_source_config(
         loader.load("test-feature")
 
 
+def test_load_rejects_method_option_when_broader_than_manifest_support(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Auto-resolution `when` must not be broader than manifest install support."""
+    root = _write_test_repo(
+        tmp_path,
+        feature_metadata=_minimal_feature_metadata(
+            _options={"method": {"package": {"when": {"plat.pm": ["apt", "dnf"]}}}},
+            _dependencies={
+                "run": {
+                    "method-package": {
+                        "packages": [
+                            {
+                                "name": "tool",
+                                "when": {"plat.pm": "apt", "os.id": "debian"},
+                            },
+                            {
+                                "name": "tool",
+                                "when": {"plat.pm": "dnf", "os.id": "fedora"},
+                            },
+                        ]
+                    }
+                }
+            },
+        ),
+        shared_yaml=(_REPO_ROOT / "features" / "metadata.shared.yaml").read_text(
+            encoding="utf-8"
+        ),
+    )
+    loader = _loader_for(root, monkeypatch)
+    with pytest.raises(
+        ValueError,
+        match=r"_options\.method\.package\.when clause .* broader than .* add os\.id",
+    ):
+        loader.load("test-feature")
+
+
+def test_load_rejects_method_option_when_missing_version_guard(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Expanded OS clauses still need version guards when the manifest requires them."""
+    root = _write_test_repo(
+        tmp_path,
+        feature_metadata=_minimal_feature_metadata(
+            _options={
+                "method": {
+                    "package": {
+                        "when": [
+                            {
+                                "plat.pm": "apt",
+                                "os.id": ["debian", "ubuntu"],
+                            }
+                        ]
+                    }
+                }
+            },
+            _dependencies={
+                "run": {
+                    "method-package": {
+                        "packages": [
+                            {
+                                "name": "tool",
+                                "when": {"plat.pm": "apt", "os.id": "debian"},
+                            },
+                            {
+                                "name": "tool",
+                                "when": {
+                                    "plat.pm": "apt",
+                                    "os.id": "ubuntu",
+                                    "os.version_id": ["25.04", "25.10"],
+                                },
+                            },
+                        ]
+                    }
+                }
+            },
+        ),
+        shared_yaml=(_REPO_ROOT / "features" / "metadata.shared.yaml").read_text(
+            encoding="utf-8"
+        ),
+    )
+    loader = _loader_for(root, monkeypatch)
+    with pytest.raises(
+        ValueError,
+        match=(
+            r"_options\.method\.package\.when clause "
+            r".* broader than .* add os\.version_id"
+        ),
+    ):
+        loader.load("test-feature")
+
+
 def test_load_merges_shared_options(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
