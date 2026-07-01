@@ -294,6 +294,9 @@ _logging__foreach_pending_record() {
           printf '%s\n' "$_payload" >> "$_LOGGING__LOG_FILE_TMP"
         fi
       fi
+    elif [[ "$_rest" == +$'\t'* ]]; then
+      _payload="${_rest#+$'\t'}"
+      _logging__dispatch_payload "$_min" "$_payload"
     else
       _payload="${_rest}"
       _logging__replay_pending_line "$_min" "$_payload"

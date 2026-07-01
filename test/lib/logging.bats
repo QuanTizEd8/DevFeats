@@ -814,6 +814,29 @@ _SOURCE_LOGGING="source '${_FILE_LIB}' && source '${_LOGGING_POSIX}' && source '
   assert_success
 }
 
+@test "multi-line message before setup is replayed as separate lines in log" {
+  local _dest="${BATS_TEST_TMPDIR}/multiline-pending.log"
+  run bash -c "
+    ${_SOURCE_LOGGING}
+    LOG_LEVEL=info
+    LOG_FILE_LEVEL=info
+    LOG_FILE='${_dest}'
+    logging__info \$'line one\nline two\nline three'
+    logging__setup
+    logging__cleanup
+    file__session_cleanup
+  "
+  assert_success
+  run grep -c 'line one' "$_dest"
+  assert_output '1'
+  run grep -c 'line two' "$_dest"
+  assert_output '1'
+  run grep -c 'line three' "$_dest"
+  assert_output '1'
+  run grep -q 'line one.*line two' "$_dest"
+  assert_failure
+}
+
 @test "logging__error before setup is not duplicated after flush" {
   local _dest="${BATS_TEST_TMPDIR}/errdup.log"
   local _stderr="${BATS_TEST_TMPDIR}/errdup.stderr"

@@ -256,7 +256,7 @@ _logging__pending_ensure() {
 }
 
 _logging__pending_emit() {
-  local _log_min _log_emoji _log_msg _log_fmt
+  local _log_min _log_emoji _log_msg _log_fmt _log_subline _log_is_first
   _log_min=$1
   _log_emoji=$2
   shift 2
@@ -264,10 +264,22 @@ _logging__pending_emit() {
   _logging__pending_ensure
   _LOGGING__PENDING_FLUSHED=0
   for _log_msg in "$@"; do
-    _log_msg=$(_logging__format_msg "$_log_msg")
-    _log_fmt="${_log_emoji} ${_log_msg}"
-    _log_fmt=$(_logging__encode_payload "$_log_fmt")
-    printf '%s\t%s\n' "$_log_min" "$_log_fmt" >> "$_LOGGING__PENDING_FILE"
+    _log_is_first=1
+    # Split on newlines; pipe body runs in a subshell which is fine because
+    # _log_is_first only needs to transition 1→0 within one message's subshell.
+    printf '%s\n' "$_log_msg" | while IFS= read -r _log_subline || [ -n "$_log_subline" ]; do
+      if [ "$_log_is_first" = 1 ]; then
+        _log_subline=$(_logging__format_msg "$_log_subline")
+        _log_fmt="${_log_emoji} ${_log_subline}"
+        _log_fmt=$(_logging__encode_payload "$_log_fmt")
+        printf '%s\t%s\n' "$_log_min" "$_log_fmt" >> "$_LOGGING__PENDING_FILE"
+        _log_is_first=0
+      else
+        _log_subline=$(_logging__sanitize_line "$_log_subline")
+        _log_fmt=$(_logging__encode_payload "$_log_subline")
+        printf '%s\t+\t%s\n' "$_log_min" "$_log_fmt" >> "$_LOGGING__PENDING_FILE"
+      fi
+    done
   done
   return 0
 }
@@ -318,17 +330,23 @@ _logging__pending_console_level() {
 }
 
 _logging__pending_dump_stderr() {
-  local _log_console _log_min _log_payload
+  local _log_console _log_min _log_second _log_payload
   if [ -z "${_LOGGING__PENDING_FILE:-}" ] || [ ! -f "$_LOGGING__PENDING_FILE" ]; then
     return 0
   fi
   _log_console=$(_logging__pending_console_level)
   while IFS= read -r _log_line || [ -n "$_log_line" ]; do
     _log_min=$(printf '%s\n' "$_log_line" | cut -f1)
-    [ "$_log_console" -ge "$_log_min" ] || continue
-    _log_payload=$(printf '%s\n' "$_log_line" | cut -f2-)
-    _log_payload=$(_logging__prefix_payload "$_log_payload")
-    [ -n "$_log_payload" ] && printf '%s\n' "$_log_payload" >&2
+    [ "$_log_console" -ge "$_log_min" ] 2> /dev/null || continue
+    _log_second=$(printf '%s\n' "$_log_line" | cut -f2)
+    if [ "$_log_second" = '+' ]; then
+      _log_payload=$(printf '%s\n' "$_log_line" | cut -f3-)
+      [ -n "$_log_payload" ] && printf '%s\n' "$_log_payload" >&2
+    else
+      _log_payload=$(printf '%s\n' "$_log_line" | cut -f2-)
+      _log_payload=$(_logging__prefix_payload "$_log_payload")
+      [ -n "$_log_payload" ] && printf '%s\n' "$_log_payload" >&2
+    fi
   done < "$_LOGGING__PENDING_FILE"
   return 0
 }
