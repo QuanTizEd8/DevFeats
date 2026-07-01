@@ -39,9 +39,11 @@ _options:
       when:
         - plat.pm: [apk, brew, pacman, zypper]
         - {plat.pm: [dnf, yum], os.id: fedora}
-        - {plat.pm: [dnf, yum], os.id: [rhel, rocky, almalinux, centos, ol], os.version_id_major: ["8", "9", "10"]}
         - {plat.pm: apt, os.version_codename: [resolute, questing]}
         - {plat.pm: apt, os.id: debian, os.version_codename: [sid, trixie, forky]}
+    upstream-package:
+      when:
+        - {plat.pm: [dnf, yum], os.id: [rhel, rocky, almalinux, centos, ol], os.version_id_major: ["8", "9", "10"]}
     cargo:
       crate: tokei
       args: ["--locked", "--features", "all"]
@@ -56,7 +58,11 @@ _dependencies:
         - name: tokei
           version: "{feat.pm_version}"
           when: ${{ _options.method.package.when }}$
-
+    method-upstream-package:
+      packages:
+        - name: tokei
+          version: "{feat.pm_version}"
+          when: ${{ _options.method.upstream-package.when }}$
         - ${{ _internal.epel_rhel_family }}$
   build:
     method-cargo:

@@ -34,14 +34,20 @@ _options:
       package: "lefthook"
       args:
         - "--ignore-scripts"
+    package:
+      when: {plat.pm: brew}
     upstream-package:
-      when: {plat.pm: [apt, apk, dnf, zypper, brew]}
+      when: {plat.pm: [apt, apk, dnf, yum, zypper]}
   prefix:
     bins: [lefthook]
     applies_when:
       - method: [binary, npm]
 _dependencies:
   run:
+    method-package:
+      brew:
+        packages:
+          - lefthook
     method-upstream-package:
       packages:
         - name: lefthook
@@ -106,7 +112,4 @@ _dependencies:
             sslcacert=/etc/pki/tls/certs/ca-bundle.crt
             metadata_expire=300
             type=rpm-md
-      brew:
-        packages:
-          - lefthook
 # installsAfter: []

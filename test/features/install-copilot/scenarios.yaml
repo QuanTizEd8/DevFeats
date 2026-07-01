@@ -9,6 +9,16 @@ default:
   envs: [ubuntu-stable]
   tests: [default]
 
+macos_package_default:
+  envs: [macos-current+brew]
+  modes: [macos]
+  setup: |
+    brew list --cask copilot-cli >/dev/null 2>&1 && brew uninstall --cask copilot-cli || true
+    brew list --cask copilot-cli@prerelease >/dev/null 2>&1 && brew uninstall --cask copilot-cli@prerelease || true
+  options:
+    method: package
+  tests: [macos_package_default]
+
 # ── new options ───────────────────────────────────────────────────────────────
 
 copilot_home:

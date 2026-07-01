@@ -19,7 +19,6 @@ upstream_package_default:
   envs:
   - ubuntu-stable
   - debian-stable
-  - alpine-current
   - fedora-current
   - opensuse-leap-current+bash
   modes:
@@ -28,6 +27,16 @@ upstream_package_default:
     method: upstream-package
   tests:
   - upstream_package_default
+package_default:
+  envs:
+  - alpine-current
+  - archlinux-current
+  modes:
+  - devcontainer
+  options:
+    method: package
+  tests:
+  - package_default
 binary_custom_prefix:
   envs:
   - ubuntu-stable

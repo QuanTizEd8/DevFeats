@@ -54,6 +54,24 @@ package_default:
     - title: tokei counts lines of a shell file
       cmd: bash -c 'printf "#!/bin/sh\necho hello\n" > /tmp/test.sh && tokei /tmp/test.sh'
 
+upstream_package_default:
+  description: |
+    method=upstream-package on Rocky Linux installs tokei via an added package
+    source (EPEL) and leaves a functional rpm-managed binary on PATH.
+  checks:
+    - title: tokei is on PATH
+      cmd: command -v tokei
+    - title: tokei binary is executable
+      cmd: bash -c 'test -x "$(command -v tokei)"'
+    - title: tokei is rpm-managed
+      cmd: bash -c 'rpm -q tokei >/dev/null 2>&1 && rpm -qf "$(command -v tokei)" >/dev/null 2>&1'
+    - title: tokei --version succeeds
+      cmd: tokei --version
+    - title: tokei reports a semver version
+      cmd: bash -c 'tokei --version | grep -Eq "^tokei [0-9]+"'
+    - title: tokei counts lines of a shell file
+      cmd: bash -c 'printf "#!/bin/sh\necho hello\n" > /tmp/test.sh && tokei /tmp/test.sh'
+
 method_cargo:
   description: |
     method=cargo on Ubuntu with Rust pre-installed: builds tokei from crates.io with

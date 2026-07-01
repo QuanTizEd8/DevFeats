@@ -40,8 +40,10 @@ _options:
       cmd: task
     npm:
       package: "@go-task/cli"
+    package:
+      when: {plat.pm: brew}
     upstream-package:
-      when: {plat.pm: [apt, apk, dnf, yum, zypper, brew]}
+      when: {plat.pm: [apt, apk, dnf, yum, zypper]}
   prefix:
     bins: [task]
     applies_when:
@@ -55,10 +57,15 @@ customizations:
       - task.vscode-task
 _dependencies:
   run:
+    method-package:
+      brew:
+        packages:
+          - name: task
+            brew: go-task
+            version: "{feat.pm_version}"
     method-upstream-package:
       packages:
         - name: task
-          brew: go-task
           version: "{feat.pm_version}"
           when: ${{ _options.method.upstream-package.when }}$
       apt:

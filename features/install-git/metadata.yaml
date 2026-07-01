@@ -103,7 +103,7 @@ _options:
     package:
       registers_as: git
     upstream-package:
-      when: {os.id: ubuntu}
+      when: {os.id: ubuntu, plat.pm: apt}
     source:
       asset_uri: "https://www.kernel.org/pub/software/scm/git/git-{feat.version}.tar.gz"
       sidecar_uri: "https://www.kernel.org/pub/software/scm/git/sha256sums.asc"

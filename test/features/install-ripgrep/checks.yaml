@@ -68,6 +68,24 @@ package_default:
     - title: rg searches plain text
       cmd: bash -c 'echo "hello world" | rg "hello"'
 
+upstream_package_default:
+  description: |
+    method=upstream-package on Rocky Linux installs ripgrep via an added
+    package source (EPEL) and leaves a functional rpm-managed rg on PATH.
+  checks:
+    - title: rg is on PATH
+      cmd: command -v rg
+    - title: rg binary is executable
+      cmd: bash -c 'test -x "$(command -v rg)"'
+    - title: rg is rpm-managed
+      cmd: bash -c 'rpm -q ripgrep >/dev/null 2>&1 && rpm -qf "$(command -v rg)" >/dev/null 2>&1'
+    - title: rg --version succeeds
+      cmd: rg --version
+    - title: rg reports a semver version
+      cmd: bash -c 'rg --version | grep -Eq "^ripgrep [0-9]+"'
+    - title: rg searches plain text
+      cmd: bash -c 'echo "hello world" | rg "hello"'
+
 if_exists_fail:
   description: |
     if_exists=fail aborts when rg is already present on PATH, leaving the

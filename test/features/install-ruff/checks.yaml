@@ -68,6 +68,24 @@ package_default:
     - title: ruff check runs on sample file
       cmd: bash -c 'printf "x=1\n" > /tmp/ruff-test.py && RUFF_CACHE_DIR=/tmp/ruff-cache ruff check /tmp/ruff-test.py'
 
+upstream_package_default:
+  description: |
+    method=upstream-package on Rocky Linux installs Ruff via an added package
+    source (EPEL) and leaves a functional rpm-managed binary on PATH.
+  checks:
+    - title: ruff is on PATH
+      cmd: command -v ruff
+    - title: ruff binary is executable
+      cmd: bash -c 'test -x "$(command -v ruff)"'
+    - title: ruff is rpm-managed
+      cmd: bash -c 'rpm -q ruff >/dev/null 2>&1 && rpm -qf "$(command -v ruff)" >/dev/null 2>&1'
+    - title: ruff --version succeeds
+      cmd: ruff --version
+    - title: ruff reports a semver version
+      cmd: bash -c 'ruff --version | grep -Eq "^ruff [0-9]+"'
+    - title: ruff check runs on sample file
+      cmd: bash -c 'printf "x=1\n" > /tmp/ruff-test.py && RUFF_CACHE_DIR=/tmp/ruff-cache ruff check /tmp/ruff-test.py'
+
 if_exists_fail:
   description: |
     if_exists=fail aborts when ruff is already present on PATH, leaving the

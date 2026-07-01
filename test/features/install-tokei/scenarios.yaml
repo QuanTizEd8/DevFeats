@@ -20,6 +20,13 @@ package_default:
     method: package
   tests: [package_default]
 
+upstream_package_default:
+  envs: [rockylinux-current+bash]
+  modes: [devcontainer, standalone]
+  options:
+    method: upstream-package
+  tests: [upstream_package_default]
+
 method_cargo:
   envs: [ubuntu-current+rust]
   modes: [standalone]

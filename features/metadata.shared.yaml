@@ -185,12 +185,12 @@ options:
       - |
         *{{ #{{
           m = get("_options.method") or {}
-          return [{"value": "package", "description": "Install from the OS package manager."}] if "package" in m else []
+          return [{"value": "package", "description": "Install from the OS package manager's standard configured sources."}] if "package" in m else []
         }}# }}*
       - |
         *{{ #{{
           m = get("_options.method") or {}
-          return [{"value": "upstream-package", "description": "Install from the tool vendor's own OS package repository (adds the upstream repo and signing key)."}] if "upstream-package" in m else []
+          return [{"value": "upstream-package", "description": "Install via the OS package manager after adding non-default package sources (repos, keys, PPAs, taps, etc.)."}] if "upstream-package" in m else []
         }}# }}*
       - |
         *{{ #{{
@@ -448,7 +448,7 @@ options:
 
       **feat.*** — install options (mirrored by `__ctx_sync_version__`, `__ctx_sync_method__`, `__ctx_sync_prefix__`, `__ctx_sync_pm_version__`):
       - `{feat.version}` — resolved bare version string (e.g. `1.7.1`); use in binary/source/npm URIs
-      - `{feat.version_input}` — user version spec (e.g. `stable`, `latest`); use in PM vendor repo channel patterns
+      - `{feat.version_input}` — user version spec (e.g. `stable`, `latest`); use in upstream-package repo/channel patterns
       - `{feat.pm_version}` — derived PM pin spec (empty for stable/latest = unversioned distro install); use in `method-package` / `method-upstream-package` package `version:` fields
       - `{feat.tag}` — GitHub release tag when resolved (e.g. `v1.7.1`, `jq-1.7.1`)
       - `{feat.method}` — resolved installation method (e.g. `binary`, `package`)

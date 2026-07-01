@@ -15,7 +15,7 @@ For most features, declaring `_options` in `metadata.yaml` is sufficient — `in
 | `version.resolution: github_release` | Full `__resolve_version` (queries GitHub API, handles stable/latest/semver) |
 | `method.binary` with `asset_uri` | Full `__install_run_binary__` (fetch, checksum, extract, install) |
 | `method.package` | Full `__install_run_package__` (ospkg install from manifest) |
-| `method.upstream-package` | Full `__install_run_upstream_package__` (adds vendor repo, installs) |
+| `method.upstream-package` | Full `__install_run_upstream_package__` (adds package-source config, installs) |
 | `method.script` with `asset_uri` | Full `__install_run_script__` (fetch, verify, execute) |
 | `method.cargo` with `crate` | Full `__install_run_cargo__` (cargo install / cargo-binstall) |
 | `method.npm` with `package` | Full `__install_run_npm__` (npm install -g) |
@@ -220,7 +220,7 @@ Upstream version resolution (`feat.version`) and PM install pinning (`feat.pm_ve
 - **Upstream** (`github_release`, `npm`, `sidecar`, …) resolves the user's spec for artifacts and method `when` blocks. Runs before `METHOD=auto` selection.
 - **PM** (`feat.pm_version`) is derived after method resolution for `method-package` / `method-upstream-package` manifests. Channel specs (`stable`/`latest`) produce an empty PM spec (unversioned distro install); numeric semver prefixes are passed to ospkg for distro resolution; registry dist-tags use the resolved semver when available. `git_ref` and unresolvable opaque specs yield an empty PM spec (unversioned).
 
-Use `{feat.pm_version}` in OS package manifest `version:` fields — not `{feat.version}` or `{feat.version_input}` (except channel patterns in vendor repo URLs). See `__feat_pm_version_spec__` in the install template.
+Use `{feat.pm_version}` in OS package manifest `version:` fields — not `{feat.version}` or `{feat.version_input}` (except channel patterns in upstream-package repo URLs). See `__feat_pm_version_spec__` in the install template.
 
 ```bash
 __install_init_post() {

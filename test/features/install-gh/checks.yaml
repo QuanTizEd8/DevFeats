@@ -468,11 +468,10 @@ binary_pinned_version:
       cmd: bash -c '[ "$(gh --version 2>/dev/null | head -1 | awk "{print \$3}")" = "2.67.0" ]'
 
 upstream_package_default:
-  shell: sh
   description: |
-    method=upstream-package across all supported distros (Ubuntu, Debian, Alpine, Fedora, openSUSE).
-    Verifies gh is installed and callable on each platform via the official upstream package repo.
-    Uses shell: sh because on Alpine the bootstrap bash is removed after install-gh completes.
+    method=upstream-package across the upstream-repo-backed distros (Ubuntu,
+    Debian, Fedora, openSUSE). Verifies gh is installed and callable on each
+    platform via the official GitHub package repository.
 
   pre: |
     echo "=== which gh ==="
@@ -485,6 +484,37 @@ upstream_package_default:
       cmd: command -v gh
     - title: gh --version succeeds
       cmd: gh --version
+    - title: gh is package-manager-managed
+      kind: multiple
+      min: 1
+      cmd:
+        - bash -c 'dpkg -S "$(command -v gh)" >/dev/null 2>&1'
+        - bash -c 'rpm -q github-cli >/dev/null 2>&1 || rpm -q gh >/dev/null 2>&1'
+
+package_default:
+  shell: sh
+  description: |
+    method=package on the distros that already ship gh in their standard package
+    sources (Alpine, Arch). Verifies gh is installed, callable, and managed by
+    the native distro package manager.
+
+  pre: |
+    echo "=== which gh ==="
+    which gh 2>&1 || echo "(not on PATH)"
+    echo "=== gh --version ==="
+    gh --version 2>&1 || echo "(failed)"
+
+  checks:
+    - title: gh is on PATH
+      cmd: command -v gh
+    - title: gh --version succeeds
+      cmd: gh --version
+    - title: gh is package-manager-managed
+      kind: multiple
+      min: 1
+      cmd:
+        - sh -c 'apk info -e github-cli >/dev/null 2>&1'
+        - sh -c 'pacman -Q github-cli >/dev/null 2>&1'
 
 upstream_package_no_completions:
   description: |

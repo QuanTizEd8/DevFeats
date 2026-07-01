@@ -40,6 +40,9 @@ _options:
       when:
         - plat.pm: [apt, apk, brew, pacman, zypper]
         - {plat.pm: [dnf, yum], os.id: fedora}
+      registers_as: ripgrep
+    upstream-package:
+      when:
         - {plat.pm: [dnf, yum], os.id: [rhel, rocky, almalinux, centos, ol], os.version_id_major: ["8", "9", "10"]}
         - {plat.pm: [dnf, yum], os.id: amzn, os.version_id_major: "2023"}
       registers_as: ripgrep
@@ -56,9 +59,12 @@ _dependencies:
         - name: ripgrep
           version: "{feat.pm_version}"
           when: ${{ _options.method.package.when }}$
-
+    method-upstream-package:
+      packages:
+        - name: ripgrep
+          version: "{feat.pm_version}"
+          when: ${{ _options.method.upstream-package.when }}$
         - ${{ _internal.epel_rhel_family }}$
-
         - label: Amazon Linux 2023 via SPAL
           when:
             plat.pm: [dnf, yum]

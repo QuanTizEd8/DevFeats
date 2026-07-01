@@ -96,3 +96,15 @@ upstream_package_default:
     method: upstream-package
   tests:
   - upstream_package_default
+
+macos_package_default:
+  envs:
+  - macos-current+brew
+  modes:
+  - macos
+  setup: |
+    brew list --formula go-task >/dev/null 2>&1 && brew uninstall --formula go-task || true
+  options:
+    method: package
+  tests:
+  - macos_package_default

@@ -14,9 +14,10 @@ _long_description: >-
 
   Supports four installation methods: a direct binary download from Anthropic's CDN
   (self-contained, no system Node.js or package manager required), the Anthropic OS
-  package repository (apt/dnf/apk/brew — recommended for devcontainers), npm-bundled
-  (self-contained, no system Node.js required), and npm (requires Node.js 18+).
-  The default auto method selects the best option for the current environment.
+  package repositories on Linux (apt/dnf/yum/apk — recommended for devcontainers),
+  the standard Homebrew cask on macOS, npm-bundled (self-contained, no system
+  Node.js required), and npm (requires Node.js 18+). The default auto method
+  selects the best option for the current environment.
 
   In devcontainers, the Claude config directory (~/.claude) is symlinked to a
   persistent workspace subdirectory so credentials and settings survive container
@@ -32,8 +33,10 @@ _options:
     binary:
       asset_uri: "https://downloads.claude.ai/claude-code-releases/{feat.version}/{plat.kernel:lower}-{plat.machine_node}{plat.kernel==linux?{plat.libc==musl?-musl:}:}/claude"
       when: {plat.machine_release: [amd64, arm64]}
+    package:
+      when: {plat.pm: brew}
     upstream-package:
-      when: {plat.pm: [apt, dnf, apk, brew]}
+      when: {plat.pm: [apt, apk, dnf, yum]}
     npm-bundled:
       package: "@anthropic-ai/claude-code"
       cmd: claude
@@ -74,6 +77,10 @@ _dependencies:
     base:
       packages:
         - ca-certificates
+    method-package:
+      brew:
+        casks:
+          - "{feat.version_input==latest?claude-code@latest:claude-code}"
     method-upstream-package:
       packages:
         - name: claude-code
@@ -113,6 +120,3 @@ _dependencies:
             dearmor: false
         repos:
           - https://downloads.claude.ai/claude-code/apk/{feat.version_input==latest?latest:stable}
-      brew:
-        casks:
-          - "{feat.version_input==latest?claude-code@latest:claude-code}"

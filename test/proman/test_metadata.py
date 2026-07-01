@@ -218,6 +218,68 @@ def test_load_not_a_mapping_raises(
         loader.load("test-feature")
 
 
+def test_load_rejects_repo_modifiers_in_method_package(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`method-package` manifests must not add repos/keys/PPAs/taps/etc."""
+    root = _write_test_repo(
+        tmp_path,
+        feature_metadata=_minimal_feature_metadata(
+            _options={"method": {"package": {}}},
+            _dependencies={
+                "run": {
+                    "method-package": {
+                        "apt": {
+                            "repos": ["deb https://example.test stable main"],
+                        },
+                        "packages": ["tool"],
+                    }
+                }
+            },
+        ),
+        shared_yaml=(_REPO_ROOT / "features" / "metadata.shared.yaml").read_text(
+            encoding="utf-8"
+        ),
+    )
+    loader = _loader_for(root, monkeypatch)
+    with pytest.raises(ValueError, match="method-package must not add or alter"):
+        loader.load("test-feature")
+
+
+def test_load_rejects_upstream_package_pm_without_source_config(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Each declared upstream-package PM family must actually alter package sources."""
+    root = _write_test_repo(
+        tmp_path,
+        feature_metadata=_minimal_feature_metadata(
+            _options={
+                "method": {"upstream-package": {"when": {"plat.pm": ["apt", "brew"]}}}
+            },
+            _dependencies={
+                "run": {
+                    "method-upstream-package": {
+                        "apt": {
+                            "repos": ["deb https://example.test stable main"],
+                        },
+                        "packages": [{"name": "tool", "version": "{feat.pm_version}"}],
+                    }
+                }
+            },
+        ),
+        shared_yaml=(_REPO_ROOT / "features" / "metadata.shared.yaml").read_text(
+            encoding="utf-8"
+        ),
+    )
+    loader = _loader_for(root, monkeypatch)
+    with pytest.raises(
+        ValueError, match="adds no package-source configuration for brew"
+    ):
+        loader.load("test-feature")
+
+
 def test_load_merges_shared_options(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -566,10 +628,11 @@ def test_load_resolves_epel_rhel_family_from_internal() -> None:
 
     for feat_id, package_name in (
         ("install-ripgrep", "ripgrep"),
+        ("install-ruff", "ruff"),
         ("install-tokei", "tokei"),
     ):
         meta = loader.load(feat_id)[feat_id]
-        packages = meta["_dependencies"]["run"]["method-package"]["packages"]
+        packages = meta["_dependencies"]["run"]["method-upstream-package"]["packages"]
         epel_entries = [
             p
             for p in packages
@@ -581,9 +644,9 @@ def test_load_resolves_epel_rhel_family_from_internal() -> None:
         assert entry["keys"] == epel["keys"]
         assert entry["repos"] == epel["repos"]
 
-        manifest_default = meta["options"]["ospkg_manifest_method_package_run"][
-            "default"
-        ]
+        manifest_default = meta["options"][
+            "ospkg_manifest_method_upstream_package_run"
+        ]["default"]
         assert "RHEL-family via EPEL" in manifest_default
         assert package_name in manifest_default
         assert "RPM-GPG-KEY-EPEL" in manifest_default

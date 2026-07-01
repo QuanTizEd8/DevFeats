@@ -17,6 +17,15 @@ from proman.when_util import (
     serialize_when_flow,
 )
 
+_PM_FAMILIES = frozenset({"apt", "apk", "brew", "dnf", "yum", "pacman", "zypper"})
+_SOURCE_MODIFIER_KEYS = frozenset({"repos", "keys", "ppas", "taps", "copr", "modules"})
+_SOURCE_MODIFIER_PM_HINTS = {
+    "ppas": frozenset({"apt"}),
+    "taps": frozenset({"brew"}),
+    "copr": frozenset({"dnf"}),
+    "modules": frozenset({"dnf"}),
+}
+
 
 class MetadataLoader:
     """Feature metadata loader."""
@@ -126,6 +135,7 @@ class MetadataLoader:
         metadata.pop("_project")
 
         self._validate_schema(metadata)
+        self._validate_method_manifests(metadata)
 
         return metadata
 
@@ -194,6 +204,62 @@ class MetadataLoader:
             )
         raise ValueError("\n".join(lines))
 
+    def _validate_method_manifests(self, metadata: dict) -> None:
+        """Enforce semantic separation between package-based install methods."""
+        errs: list[str] = []
+        dependencies = metadata.get("_dependencies") or {}
+        method_options = (metadata.get("_options") or {}).get("method") or {}
+
+        for lifecycle in ("run", "build"):
+            manifests = dependencies.get(lifecycle) or {}
+
+            package_manifest = manifests.get("method-package")
+            if package_manifest:
+                package_paths, _, _ = _collect_source_modifier_info(package_manifest)
+                if package_paths:
+                    joined = ", ".join(package_paths)
+                    msg = (
+                        f"_dependencies.{lifecycle}.method-package must not add "
+                        "or alter package sources; move these entries to "
+                        f"method-upstream-package instead: {joined}"
+                    )
+                    errs.append(msg)
+
+            upstream_manifest = manifests.get("method-upstream-package")
+            if not upstream_manifest:
+                continue
+
+            source_paths, source_pms, has_generic_source = (
+                _collect_source_modifier_info(upstream_manifest)
+            )
+            if not source_paths:
+                errs.append(
+                    f"_dependencies.{lifecycle}.method-upstream-package must add or"
+                    " alter package sources for at least one package manager."
+                )
+                continue
+
+            declared_when = (method_options.get("upstream-package") or {}).get("when")
+            if declared_when is None and isinstance(upstream_manifest, dict):
+                declared_when = upstream_manifest.get("when")
+            declared_pms = _extract_pm_values(declared_when)
+            if declared_pms and not has_generic_source:
+                missing = sorted(declared_pms - source_pms)
+                if missing:
+                    supported = ", ".join(sorted(declared_pms))
+                    missing_joined = ", ".join(missing)
+                    errs.append(
+                        f"_dependencies.{lifecycle}.method-upstream-package "
+                        f"declares support for package managers {supported} but "
+                        "adds no package-source configuration for "
+                        f"{missing_joined}."
+                    )
+
+        if errs:
+            lines = ["Method manifest validation failed:"]
+            lines.extend(f"  • {err}" for err in errs)
+            raise ValueError("\n".join(lines))
+
     def _normalize_lifecycle_keys(self, metadata: dict) -> None:
         """Rewrite lifecycle hook map keys to ``<prefix><task>``.
 
@@ -221,3 +287,115 @@ def _schema_error_path(err: ValidationError) -> str:
     if err.absolute_path:
         return " → ".join(str(part) for part in err.absolute_path)
     return "(root)"
+
+
+def _collect_source_modifier_info(
+    manifest: object,
+) -> tuple[list[str], frozenset[str], bool]:
+    """Return source-modifier paths, PM families hit, and whether scope is generic."""
+    paths: list[str] = []
+    pm_hits: set[str] = set()
+    has_generic_scope = False
+
+    def visit(
+        node: object,
+        *,
+        path: tuple[str, ...] = (),
+        scope_pms: frozenset[str] | None = None,
+    ) -> None:
+        nonlocal has_generic_scope
+        if isinstance(node, dict):
+            node_scope = _merge_pm_scopes(
+                scope_pms, _extract_pm_values(node.get("when"))
+            )
+            for key, value in node.items():
+                child_path = (*path, key)
+                child_scope = node_scope
+                if key in _PM_FAMILIES:
+                    child_scope = _merge_pm_scopes(node_scope, frozenset({key}))
+                if key in _SOURCE_MODIFIER_KEYS and value:
+                    paths.append(_format_path(child_path))
+                    modifier_scope = _merge_pm_scopes(
+                        child_scope,
+                        _SOURCE_MODIFIER_PM_HINTS.get(key),
+                    )
+                    if modifier_scope is None:
+                        has_generic_scope = True
+                    else:
+                        pm_hits.update(modifier_scope)
+                visit(value, path=child_path, scope_pms=child_scope)
+            return
+
+        if isinstance(node, list):
+            for idx, entry in enumerate(node):
+                visit(entry, path=(*path, f"[{idx}]"), scope_pms=scope_pms)
+
+    visit(manifest)
+    return paths, frozenset(pm_hits), has_generic_scope
+
+
+def _extract_pm_values(when: object) -> frozenset[str] | None:
+    """Return positively constrained PM families from a when-spec, if derivable."""
+    result: frozenset[str] | None = None
+    if not when:
+        return result
+    if isinstance(when, dict):
+        pm_value = when.get("plat.pm")
+        if pm_value is not None:
+            result = _extract_pm_condition_values(pm_value)
+    elif isinstance(when, list):
+        pm_sets: list[frozenset[str]] = []
+        for clause in when:
+            clause_pms = _extract_pm_values(clause)
+            if clause_pms is None:
+                pm_sets = []
+                break
+            pm_sets.append(clause_pms)
+        if pm_sets:
+            result = frozenset().union(*pm_sets)
+    return result
+
+
+def _extract_pm_condition_values(value: object) -> frozenset[str] | None:
+    """Return PM values from a positive equality condition, if derivable."""
+    if isinstance(value, str):
+        return frozenset({value}) if value in _PM_FAMILIES else None
+
+    if isinstance(value, list):
+        members = {
+            item for item in value if isinstance(item, str) and item in _PM_FAMILIES
+        }
+        return frozenset(members) if members else None
+
+    if isinstance(value, dict):
+        eq_value = value.get("eq")
+        if eq_value is None or "ne" in value:
+            return None
+        return _extract_pm_condition_values(eq_value)
+
+    return None
+
+
+def _merge_pm_scopes(
+    left: frozenset[str] | None,
+    right: frozenset[str] | None,
+) -> frozenset[str] | None:
+    """Intersect PM scopes when both are known, otherwise keep the known scope."""
+    if left is None:
+        return right
+    if right is None:
+        return left
+    return left & right
+
+
+def _format_path(path: tuple[str, ...]) -> str:
+    """Render a tuple path using dotted components and list indices."""
+    rendered = ""
+    for part in path:
+        if part.startswith("["):
+            rendered += part
+        elif not rendered:
+            rendered = part
+        else:
+            rendered += f".{part}"
+    return rendered

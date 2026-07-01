@@ -218,7 +218,7 @@
               }
             },
             "package": {
-              "description": "Auto-impl marker for `METHOD=package` installation via the OS package manager. Packages are installed from the generated option `ospkg_manifest_method_package_run` (sourced from `_dependencies.run.method-package` by `__dep_install_for_method__`). `__install_run_package__` provides hook points only.",
+              "description": "Auto-impl marker for `METHOD=package` installation via the OS package manager's standard configured sources. Packages are installed from the generated option `ospkg_manifest_method_package_run` (sourced from `_dependencies.run.method-package` by `__dep_install_for_method__`). `method-package` manifests must not add or alter package-source configuration; use `upstream-package` for repos, keys, PPAs, taps, Copr, modules, or similar source-enabling setup. `__install_run_package__` provides hook points only.",
               "type": "object",
               "additionalProperties": false,
               "properties": {
@@ -237,7 +237,7 @@
               }
             },
             "upstream-package": {
-              "description": "Auto-impl marker for `METHOD=upstream-package` installation from the tool vendor's own OS package repository. Vendor repo/key setup and package install use the generated option `ospkg_manifest_method_upstream_package_run` (from `_dependencies.run.method-upstream-package`). Enables `__install_run_upstream_package__`, `__update_run_upstream_package__`, and `__uninstall_run_upstream_package__` hook points.",
+              "description": "Auto-impl marker for `METHOD=upstream-package` installation via the OS package manager after adding or altering package-source configuration. Repo/key setup and package install use the generated option `ospkg_manifest_method_upstream_package_run` (from `_dependencies.run.method-upstream-package`). Use this for vendor repos as well as other non-default sources such as EPEL, PPAs, Copr, taps, release packages, or similar bootstrap steps. Enables `__install_run_upstream_package__`, `__update_run_upstream_package__`, and `__uninstall_run_upstream_package__` hook points.",
               "type": "object",
               "additionalProperties": false,
               "properties": {
@@ -247,7 +247,7 @@
                 },
                 "when": {
                   "$ref": "#/$defs/WhenSpec",
-                  "description": "Runtime OS context conditions required for the `upstream-package` method to be considered feasible by `__resolve_auto_method__`. Same semantics as `binary.when`. Use `plat.pm` to restrict to specific package manager families; use `os.id` to restrict to specific distros (e.g. `os.id: ubuntu` for Ubuntu-only vendor repos)."
+                  "description": "Runtime OS context conditions required for the `upstream-package` method to be considered feasible by `__resolve_auto_method__`. Same semantics as `binary.when`. Use `plat.pm` to restrict to specific package manager families; use `os.id` to restrict to specific distros (e.g. `os.id: ubuntu`, `plat.pm: apt` for an Ubuntu-only added repository)."
                 }
               }
             },

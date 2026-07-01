@@ -42,6 +42,9 @@ _options:
         - plat.pm: [apk, brew, pacman, zypper]
         - {plat.pm: [dnf, yum], os.id: fedora}
         - {plat.pm: apt, os.id: debian, os.version_codename: sid}
+      registers_as: ruff
+    upstream-package:
+      when:
         - {plat.pm: [dnf, yum], os.id: [rhel, rocky, almalinux, centos, ol], os.version_id_major: ["8", "9", "10"]}
       registers_as: ruff
     cargo:
@@ -69,5 +72,9 @@ _dependencies:
           version: "{feat.pm_version}"
           zypper: python3-ruff
           when: ${{ _options.method.package.when }}$
-
+    method-upstream-package:
+      packages:
+        - name: ruff
+          version: "{feat.pm_version}"
+          when: ${{ _options.method.upstream-package.when }}$
         - ${{ _internal.epel_rhel_family }}$

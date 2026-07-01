@@ -254,7 +254,7 @@ URI substitutions use qualified context tokens expanded by `ctx__expand_pattern`
 
 The auto-implementation handles: URI expansion, fetch, SHA256 verification (from GitHub JSON or sidecar), extraction, and binary placement. A single `binary_src` entry installs to `${PREFIX}/bin/<basename>`; multiple entries install real copies into `${PREFIX}/bin/` via fan-out (use `companion_bins` for symlinks to the primary binary only). Override with `__install_run_binary_pre` only when the asset URI or verification logic must be computed dynamically.
 
-**`package` — install via OS package manager:**
+**`package` — install via OS package manager from standard configured sources:**
 
 ```yaml
 package:
@@ -262,8 +262,9 @@ package:
 ```
 
 Installs packages from `_dependencies.run.method-package` via the generated `ospkg_manifest_method_package_run` option (override with inline YAML or a path/URI).
+Use this only for package-manager installs that rely solely on the system's default configured sources. Do not add repos, keys, PPAs, taps, Copr repos, modules, or similar source-enabling setup in `method-package`.
 
-**`upstream-package` — install from the vendor's own OS package repository:**
+**`upstream-package` — install via OS package manager after adding non-default package sources:**
 
 ```yaml
 upstream-package:
@@ -271,6 +272,7 @@ upstream-package:
 ```
 
 Installs packages from `_dependencies.run.method-upstream-package` via `ospkg_manifest_method_upstream_package_run`.
+Use this for any package-manager install that first extends package-source configuration: vendor repos, EPEL, PPAs, Copr, taps, release/bootstrap packages, or similar setup.
 
 **`source` — build from a source archive:**
 

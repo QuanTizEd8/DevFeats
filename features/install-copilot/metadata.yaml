@@ -52,7 +52,7 @@ _options:
       when: {plat.machine_release: [amd64, arm64]}
     npm:
       package: "@github/copilot"
-    upstream-package:
+    package:
       when: {plat.pm: brew}
   prefix:
     bins: [copilot]
@@ -116,7 +116,7 @@ _dependencies:
     base:
       packages:
         - ca-certificates
-    method-upstream-package:
+    method-package:
       brew:
         casks:
           - "{feat.version_input==latest?copilot-cli@prerelease:copilot-cli}"
