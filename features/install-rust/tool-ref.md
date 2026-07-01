@@ -228,7 +228,7 @@ The `rustup-init` executable accepts the following command-line flags:[^rustup-i
 | `RUSTUP_AUTO_INSTALL` | `1` | Auto-install missing toolchains (set to `0` to disable) |
 | `RUSTUP_DOWNLOAD_TIMEOUT` *(unstable)* | `180` | Timeout in seconds for component downloads |
 | `RUSTUP_CONCURRENT_DOWNLOADS` *(unstable)* | `2` | Number of concurrent downloads |
-| `RUSTUP_IO_THREADS` *(unstable)* | auto (max 8) | Number of IO threads for unpacking |
+| `RUSTUP_IO_THREADS` *(unstable)* | auto (max 8) | Number of threads for performing close IO |
 | `RUSTUP_TERM_COLOR` | `auto` | Color output: `auto`, `always`, or `never` |
 | `RUSTUP_TERM_PROGRESS_WHEN` | `auto` | Progress bar display: `always`, `never`, or `auto` |
 | `RUSTUP_PERMIT_COPY_RENAME` *(unstable)* | (unset) | Permit copy+rename in place of atomic rename on OverlayFS (Docker) — sacrifices transactional safety[^rustup-env-vars] |
@@ -342,7 +342,7 @@ Uninstallation requires no special privileges for user-local installations. For 
 
 ##### Idempotency
 
-Running `rustup-init` on a system where `rustup` is already installed will check for updates to `rustup` itself and perform them if needed (no "skip" — it proactively checks for and applies self-updates). The toolchain installation itself is idempotent — running `rustup toolchain install stable` when stable is already at the latest version will be a no-op. When a specific version is requested and already installed, it will not be re-downloaded. The `rustup update` command is also idempotent — it only downloads toolchain updates when newer versions are available.[^rustup-installation]
+Running `rustup-init` on a system where `rustup` is already installed will check for updates to `rustup` itself and perform them if needed (no "skip" — it proactively checks for and applies self-updates).[^rustup-init-sh] The toolchain installation itself is idempotent — running `rustup toolchain install stable` when stable is already at the latest version will be a no-op. When a specific version is requested and already installed, it will not be re-downloaded. The `rustup update` command is also idempotent — it only downloads toolchain updates when newer versions are available.[^rustup-installation]
 
 #### Details
 
@@ -433,7 +433,7 @@ Standalone installers are signed with the Rust GPG signing key. Signatures (`.as
 gpg --verify rust-1.96.1-x86_64-unknown-linux-gnu.tar.xz.asc
 ```
 
-Standalone installers also have `.sha256` checksum files available alongside the downloads (e.g., `rust-1.96.1-x86_64-unknown-linux-gnu.tar.xz.sha256`), which can be used for verification without GPG. These files follow the same URL pattern as the installer archives — appending `.sha256` to the archive URL. (The SHA-256 files are distributed at the same location as the archives themselves; the Rust Forge page only documents GPG signatures, but the checksum files follow the same naming convention as the `rustup-init` SHA-256 files documented in the rustup book.)[^rustup-other-install]
+Standalone installer archives have SHA-256 checksums available through two mechanisms. First, the channel manifest (e.g., `channel-rust-stable.toml`) includes `hash` and `xz_hash` fields for each package/target entry, providing integrity verification through rustup's standard update mechanism.[^forge-channel-layout] Second, `.sha256` sidecar files exist alongside the archives (e.g., `rust-1.96.1-x86_64-unknown-linux-gnu.tar.xz.sha256`), following the same URL pattern as the archives — appending `.sha256` to the archive URL.[^rustup-other-install] The Rust Forge page only documents GPG signatures (.asc) for standalone installers; the SHA-256 files follow a naming convention analogous to the rustup-init checksum files documented in the rustup book.
 
 The Rust signing key is available at https://static.rust-lang.org/rust-key.gpg.ascii.
 
@@ -454,7 +454,7 @@ On Unix, the `install.sh` script accepts `--prefix` to customize the installatio
 sudo ./install.sh --prefix=/opt/rust
 ```
 
-The default prefix is `/usr/local`. On Windows, MSI installers prompt for the installation directory. On macOS, PKG installers install to `/usr/local` (binaries to `/usr/local/bin`, libraries to `/usr/local/lib/rustlib/`).[^forge-standalone-installers]
+The default prefix is `/usr/local`. On Windows, MSI installers prompt for the installation directory. On macOS, PKG installers install to `/usr/local` (binaries to `/usr/local/bin`, libraries to `/usr/local/lib/rustlib/`).[^rust-installer-template]
 
 ##### User Targeting
 
@@ -468,7 +468,7 @@ On Unix, the `install.sh` script writes to system directories and typically need
 
 Standalone installers have minimal configuration options:
 - `--prefix=<path>` — Set the installation prefix (Unix only)[^forge-standalone-installers]
-- `--disable-ldconfig` — Skip running ldconfig after installation (Unix only)[^rust-installer-template]
+- `--disable-ldconfig` — Skip running ldconfig after installation (Linux only)[^rust-installer-template]
 - No post-install configuration is created (no `settings.toml`, no profile modifications)
 
 #### Post-Installation Steps and Cleanup
@@ -752,10 +752,12 @@ When installing the Rust toolchain in a devcontainer environment, the following 
 
 [^devcontainers-rust-image]: [microsoft/devcontainers-rust — Docker Hub](https://hub.docker.com/r/microsoft/devcontainers-rust). Pre-built Rust devcontainer images on Docker Hub.
 
-[^rust-installer-template]: [rust-installer — install-template.sh — GitHub](https://github.com/rust-lang/rust/blob/master/src/tools/rust-installer/install-template.sh). Source template for the standalone installer `install.sh` script. Defines all available installation options including `--prefix`, `--disable-ldconfig`, `--verbose`, and others.
+[^rust-installer-template]: [rust-installer — install-template.sh — GitHub](https://github.com/rust-lang/rust/blob/master/src/tools/rust-installer/install-template.sh). Source template for the standalone installer `install.sh` script. Defines all available installation options including `--prefix` (default: `/usr/local`), `--disable-ldconfig`, `--verbose`, and others. The default prefix of `/usr/local` determines where macOS PKG installers place files.
 
 [^rust-installer-readme]: [rust-installer — README.md — GitHub](https://github.com/rust-lang/rust/blob/master/src/etc/installer/README.md). Official README for the Rust standalone installer, documenting the `install.sh` and `uninstall.sh` usage including the uninstall script path at `/usr/local/lib/rustlib/uninstall.sh`.
 
 [^forge-standalone-installers]: [Rust Forge — Other Installation Methods](https://forge.rust-lang.org/infra/other-installation-methods.html). Official documentation on standalone installers, source code downloads, and GPG signature verification.
+
+[^forge-channel-layout]: [Rust Forge — The Rust Release Channel Layout](https://forge.rust-lang.org/infra/channel-layout.html). Document describing the channel manifest format, which includes `hash` and `xz_hash` fields for each package/target entry, providing SHA-256 checksums for all distributed artifacts.
 
 [^archlinux-wiki-rust]: [ArchWiki — Rust](https://wiki.archlinux.org/title/Rust). Arch Linux documentation on the `rustup` package, including the note that `rustup self update` does not work when installed via pacman.
