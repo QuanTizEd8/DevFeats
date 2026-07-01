@@ -1,0 +1,61 @@
+default:
+  envs: [ubuntu-stable]
+  modes: [devcontainer, standalone]
+  options:
+    shell_completions: bash
+  tests: [default]
+
+binary_pinned_version:
+  envs: [ubuntu-stable]
+  modes: [devcontainer, standalone]
+  options:
+    version: "0.15.20"
+    method: binary
+    shell_completions: bash
+  tests: [binary_pinned_version]
+
+binary_custom_prefix:
+  envs: [ubuntu-stable]
+  modes: [devcontainer, standalone]
+  options:
+    method: binary
+    prefix: /opt/ruff-bin
+    prefix_discovery: symlink
+    if_exists: reinstall
+    shell_completions: bash
+  tests: [binary_custom_prefix]
+
+package_default:
+  envs:
+    - alpine-current+bash
+    - fedora-current+bash
+    - archlinux-current
+    - opensuse-leap-current+bash
+    - rockylinux-current+bash
+  modes: [devcontainer, standalone]
+  options:
+    method: package
+  tests: [package_default]
+
+if_exists_fail:
+  expect_install_failure: true
+  envs: [ubuntu-stable]
+  modes: [standalone]
+  setup: |
+    printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then printf "ruff 99.99.99\n"; exit 0; fi\nexit 0' \
+      > /usr/local/bin/ruff
+    chmod +x /usr/local/bin/ruff
+  options:
+    if_exists: fail
+  tests: [if_exists_fail]
+
+if_exists_skip:
+  envs: [ubuntu-stable]
+  modes: [standalone]
+  setup: |
+    printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then printf "ruff 99.99.99\n"; exit 0; fi\nexit 0' \
+      > /usr/local/bin/ruff
+    chmod +x /usr/local/bin/ruff
+  options:
+    if_exists: skip
+  tests: [if_exists_skip]

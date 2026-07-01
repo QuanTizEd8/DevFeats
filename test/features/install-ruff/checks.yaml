@@ -1,0 +1,92 @@
+default:
+  description: Default install on Ubuntu puts a functional ruff on PATH via binary auto-selection.
+  checks:
+    - title: ruff is on PATH
+      cmd: command -v ruff
+    - title: ruff binary is executable
+      cmd: bash -c 'test -x "$(command -v ruff)"'
+    - title: ruff --version succeeds
+      cmd: ruff --version
+      debug: |
+        echo "=== ruff --version ==="
+        ruff --version 2>&1 || echo "(failed)"
+    - title: ruff reports a semver version
+      cmd: bash -c 'ruff --version | grep -Eq "^ruff [0-9]+\.[0-9]+\.[0-9]+"'
+    - title: ruff check runs on sample file
+      cmd: bash -c 'printf "x=1\n" > /tmp/ruff-test.py && RUFF_CACHE_DIR=/tmp/ruff-cache ruff check /tmp/ruff-test.py'
+
+binary_pinned_version:
+  description: |
+    version=0.15.20 + method=binary: installs a specific pinned release and
+    verifies the binary reports exactly that version.
+  checks:
+    - title: ruff binary is at /usr/local/bin/ruff
+      cmd: test -f /usr/local/bin/ruff
+    - title: ruff binary is executable
+      cmd: test -x /usr/local/bin/ruff
+    - title: ruff --version succeeds
+      cmd: ruff --version
+      debug: |
+        echo "=== ruff --version ==="
+        ruff --version 2>&1 || echo "(failed)"
+    - title: ruff version is 0.15.20
+      cmd: bash -c 'ruff --version 2>/dev/null | grep -q "^ruff 0\.15\.20"'
+    - title: ruff check runs on sample file
+      cmd: bash -c 'printf "x=1\n" > /tmp/ruff-test.py && RUFF_CACHE_DIR=/tmp/ruff-cache ruff check /tmp/ruff-test.py'
+
+binary_custom_prefix:
+  description: |
+    method=binary, prefix=/opt/ruff-bin, prefix_discovery=symlink: installs ruff at a custom
+    prefix and creates a symlink at /usr/local/bin/ruff pointing to the custom binary.
+  checks:
+    - title: ruff binary is at /opt/ruff-bin/bin/ruff
+      cmd: test -f /opt/ruff-bin/bin/ruff
+    - title: ruff binary at custom prefix is executable
+      cmd: test -x /opt/ruff-bin/bin/ruff
+    - title: /opt/ruff-bin/bin/ruff --version succeeds
+      cmd: /opt/ruff-bin/bin/ruff --version
+    - title: symlink exists at /usr/local/bin/ruff
+      cmd: test -L /usr/local/bin/ruff
+    - title: symlink resolves to /opt/ruff-bin/bin/ruff
+      cmd: bash -c '[ "$(readlink -f /usr/local/bin/ruff)" = "/opt/ruff-bin/bin/ruff" ]'
+    - title: ruff resolves from PATH
+      cmd: command -v ruff
+    - title: ruff check runs via PATH
+      cmd: bash -c 'printf "x=1\n" > /tmp/ruff-test.py && RUFF_CACHE_DIR=/tmp/ruff-cache ruff check /tmp/ruff-test.py'
+
+package_default:
+  description: method=package installs ruff via the OS package manager.
+  checks:
+    - title: ruff is on PATH
+      cmd: command -v ruff
+    - title: ruff binary is executable
+      cmd: bash -c 'test -x "$(command -v ruff)"'
+    - title: ruff --version succeeds
+      cmd: ruff --version
+    - title: ruff reports a semver version
+      cmd: bash -c 'ruff --version | grep -Eq "^ruff [0-9]+"'
+    - title: ruff check runs on sample file
+      cmd: bash -c 'printf "x=1\n" > /tmp/ruff-test.py && RUFF_CACHE_DIR=/tmp/ruff-cache ruff check /tmp/ruff-test.py'
+
+if_exists_fail:
+  description: |
+    if_exists=fail aborts when ruff is already present on PATH, leaving the
+    pre-installed stub untouched.
+  checks:
+    - kind: install_failure
+      title: if_exists=fail exits with already-installed error
+      pattern: failing (if_exists=fail)
+    - title: pre-installed ruff stub still present
+      cmd: command -v ruff
+    - title: stub version is unchanged
+      cmd: bash -c 'ruff --version 2>/dev/null | grep -q "99\.99\.99"'
+
+if_exists_skip:
+  description: |
+    if_exists=skip exits 0 when ruff is already present on PATH, leaving the
+    pre-installed stub and its version untouched.
+  checks:
+    - title: ruff remains available after skip
+      cmd: command -v ruff
+    - title: stub version is unchanged (skip did not reinstall)
+      cmd: bash -c 'ruff --version 2>/dev/null | grep -q "99\.99\.99"'

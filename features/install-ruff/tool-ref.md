@@ -197,23 +197,23 @@ All release assets for 0.15.20:[^release-01520]
 
 | OS | Architecture | Rust target triple | Asset filename |
 |----|-------------|-------------------|---------------|
-| Linux | x86_64 (glibc ≥2.31) | `x86_64-unknown-linux-gnu` | `ruff-{version}-x86_64-unknown-linux-gnu.tar.gz` |
-| Linux | x86_64 (musl / old glibc fallback) | `x86_64-unknown-linux-musl` | `ruff-{version}-x86_64-unknown-linux-musl.tar.gz` |
-| Linux | arm64 (glibc ≥2.31) | `aarch64-unknown-linux-gnu` | `ruff-{version}-aarch64-unknown-linux-gnu.tar.gz` |
-| Linux | arm64 (musl) | `aarch64-unknown-linux-musl` | `ruff-{version}-aarch64-unknown-linux-musl.tar.gz` |
-| Linux | armv7 (glibc) | `armv7-unknown-linux-gnueabihf` | `ruff-{version}-armv7-unknown-linux-gnueabihf.tar.gz` |
-| Linux | armv7 (musl) | `armv7-unknown-linux-musleabihf` | `ruff-{version}-armv7-unknown-linux-musleabihf.tar.gz` |
-| Linux | armv6 | `arm-unknown-linux-musleabihf` | `ruff-{version}-arm-unknown-linux-musleabihf.tar.gz` |
-| Linux | i686 (glibc) | `i686-unknown-linux-gnu` | `ruff-{version}-i686-unknown-linux-gnu.tar.gz` |
-| Linux | i686 (musl) | `i686-unknown-linux-musl` | `ruff-{version}-i686-unknown-linux-musl.tar.gz` |
-| Linux | ppc64le | `powerpc64le-unknown-linux-gnu` | `ruff-{version}-powerpc64le-unknown-linux-gnu.tar.gz` |
-| Linux | riscv64 | `riscv64gc-unknown-linux-gnu` | `ruff-{version}-riscv64gc-unknown-linux-gnu.tar.gz` |
-| Linux | s390x | `s390x-unknown-linux-gnu` | `ruff-{version}-s390x-unknown-linux-gnu.tar.gz` |
-| macOS | arm64 | `aarch64-apple-darwin` | `ruff-{version}-aarch64-apple-darwin.tar.gz` |
-| macOS | x86_64 | `x86_64-apple-darwin` | `ruff-{version}-x86_64-apple-darwin.tar.gz` |
-| Windows | x86_64 (MSVC) | `x86_64-pc-windows-msvc` | `ruff-{version}-x86_64-pc-windows-msvc.zip` |
-| Windows | arm64 (MSVC) | `aarch64-pc-windows-msvc` | `ruff-{version}-aarch64-pc-windows-msvc.zip` |
-| Windows | i686 (MSVC) | `i686-pc-windows-msvc` | `ruff-{version}-i686-pc-windows-msvc.zip` |
+| Linux | x86_64 (glibc ≥2.31) | `x86_64-unknown-linux-gnu` | `ruff-x86_64-unknown-linux-gnu.tar.gz` |
+| Linux | x86_64 (musl / old glibc fallback) | `x86_64-unknown-linux-musl` | `ruff-x86_64-unknown-linux-musl.tar.gz` |
+| Linux | arm64 (glibc ≥2.31) | `aarch64-unknown-linux-gnu` | `ruff-aarch64-unknown-linux-gnu.tar.gz` |
+| Linux | arm64 (musl) | `aarch64-unknown-linux-musl` | `ruff-aarch64-unknown-linux-musl.tar.gz` |
+| Linux | armv7 (glibc) | `armv7-unknown-linux-gnueabihf` | `ruff-armv7-unknown-linux-gnueabihf.tar.gz` |
+| Linux | armv7 (musl) | `armv7-unknown-linux-musleabihf` | `ruff-armv7-unknown-linux-musleabihf.tar.gz` |
+| Linux | armv6 | `arm-unknown-linux-musleabihf` | `ruff-arm-unknown-linux-musleabihf.tar.gz` |
+| Linux | i686 (glibc) | `i686-unknown-linux-gnu` | `ruff-i686-unknown-linux-gnu.tar.gz` |
+| Linux | i686 (musl) | `i686-unknown-linux-musl` | `ruff-i686-unknown-linux-musl.tar.gz` |
+| Linux | ppc64le | `powerpc64le-unknown-linux-gnu` | `ruff-powerpc64le-unknown-linux-gnu.tar.gz` |
+| Linux | riscv64 | `riscv64gc-unknown-linux-gnu` | `ruff-riscv64gc-unknown-linux-gnu.tar.gz` |
+| Linux | s390x | `s390x-unknown-linux-gnu` | `ruff-s390x-unknown-linux-gnu.tar.gz` |
+| macOS | arm64 | `aarch64-apple-darwin` | `ruff-aarch64-apple-darwin.tar.gz` |
+| macOS | x86_64 | `x86_64-apple-darwin` | `ruff-x86_64-apple-darwin.tar.gz` |
+| Windows | x86_64 (MSVC) | `x86_64-pc-windows-msvc` | `ruff-x86_64-pc-windows-msvc.zip` |
+| Windows | arm64 (MSVC) | `aarch64-pc-windows-msvc` | `ruff-aarch64-pc-windows-msvc.zip` |
+| Windows | i686 (MSVC) | `i686-pc-windows-msvc` | `ruff-i686-pc-windows-msvc.zip` |
 
 **Platform selection guidance for devcontainers:**
 
@@ -230,7 +230,7 @@ Release tags use plain semver **without** a `v` prefix (e.g. `0.15.20`).[^releas
 
 URL pattern: `https://github.com/astral-sh/ruff/releases/download/{tag}/{filename}`
 
-Each archive contains a top-level directory `ruff-{version}-{target-triple}/` with the `ruff` binary (or `ruff.exe` on Windows). Per-asset `.sha256` sidecar files and a `sha256.sum` manifest are published.[^release-01520]
+Each archive contains a top-level directory `ruff-{target-triple}/` with the `ruff` binary (or `ruff.exe` on Windows). Per-asset `.sha256` sidecar files and a `sha256.sum` manifest are published.[^release-01520]
 
 #### Dependencies
 
@@ -250,7 +250,7 @@ Example — Linux x86_64, system-wide install:
 set -e
 VERSION="0.15.20"
 TARGET="x86_64-unknown-linux-gnu"
-ASSET="ruff-${VERSION}-${TARGET}.tar.gz"
+ASSET="ruff-${TARGET}.tar.gz"
 BASE_URL="https://github.com/astral-sh/ruff/releases/download/${VERSION}"
 
 curl -fsSLO "${BASE_URL}/${ASSET}"
@@ -301,7 +301,7 @@ rm -rf "${ASSET}" "${ASSET}.sha256" "${ASSET%.tar.gz}"
 3. **Verify**: `sha256sum -c` (Linux) or `shasum -a 256 -c` (macOS) against sidecar.
 4. **Extract**: archive contains `ruff-{version}-{triple}/ruff`; use `tar --no-same-owner` in containers if needed.
 5. **Install**: `install -m 0755` to target bin directory already on `PATH`.
-6. **No receipt**: unlike standalone installer, manual extraction does not write `$XDG_CONFIG_HOME/ruff/ruff-receipt.json`.
+6. **No receipt by default**: unlike the standalone installer, manual extraction does not write `$XDG_CONFIG_HOME/ruff/ruff-receipt.json`. The DevFeats `install-ruff` feature replicates this receipt on the **`method.binary`** path (via `configure_users: true` and a `__configure_user` hook), matching [`install-uv`](../../install-uv/install.bash).
 
 ### PyPI Installation (`uv tool`, `pipx`, or `pip`)
 
@@ -442,11 +442,46 @@ Upstream documents packages for:[^docs-install]
 | pkgx | `ruff` | `pkgx install ruff` |
 | Arch Linux | `ruff` | `pacman -S ruff` |
 | Alpine | `ruff` | `apk add ruff` |
+| Fedora | `ruff` | `dnf install ruff` |
 | openSUSE Tumbleweed | `python3-ruff` | `zypper install python3-ruff` |
 
 Broader distro coverage is indexed via Repology (linked from upstream installation docs).[^docs-install] Nix/Nixpkgs packages exist via Repology but are not documented in upstream installation.md; treat as out-of-scope unless explicitly added to the feature's OS package manifest.
 
 `devcontainers/features` Python feature can install `ruff` among alternate Python tools via pip in the devcontainer Python environment.[^devcontainers-python]
+
+**Not recommended for DevFeats `ospkg`**: Conda, pkgx, PyPI/uv/pipx (separate install paths), Nix, MacPorts, Gentoo, BSD pkg systems, Void, Windows package managers, Docker-only images.
+
+#### DevFeats-supported package managers — availability matrix
+
+DevFeats `ospkg` supports **`apt`**, **`apk`**, **`brew`**, **`dnf`/`yum`**, **`pacman`**, and **`zypper`**. The table below states whether `ruff` is installable with a **plain** `method-package` manifest (`packages: [ruff]`) — i.e., without adding extra repositories, keys, or vendor-specific `upstream-package` manifests.
+
+| PM | Distros / images | Package name | In default repos? | Extra repo / key setup | Sample version (2026-06-29) | Primary source | DevFeats `method.package`? |
+|----|------------------|--------------|-------------------|------------------------|----------------------------|----------------|----------------------------|
+| **brew** | macOS, Linuxbrew | `ruff` | Yes (`homebrew-core`) | No | 0.15.20 | [formulae.brew.sh API](https://formulae.brew.sh/api/formula/ruff.json) | Yes |
+| **pacman** | Arch | `ruff` | Yes (`extra`) | No | 0.15.20-1 | [archlinux.org JSON](https://archlinux.org/packages/extra/x86_64/ruff/json/) | Yes |
+| **apk** | Alpine | `ruff` | Yes (`community`) | No | lags upstream | [pkgs.alpinelinux.org](https://pkgs.alpinelinux.org/package/edge/community/x86_64/ruff) | Yes |
+| **dnf / yum** | Fedora | `ruff` | Yes (base repos) | No | 0.15.16–0.15.20 | [packages.fedoraproject.org](https://packages.fedoraproject.org/pkgs/ruff/ruff/) | Yes — `os.id: fedora` |
+| **dnf / yum** | RHEL, Rocky, Alma, CentOS Stream, Oracle Linux | `ruff` | **No** (base) | **Yes — EPEL** (+ CRB on host) | 0.15.16–0.15.20 on EPEL 10 | [packages.fedoraproject.org EPEL 10](https://packages.fedoraproject.org/pkgs/ruff/ruff/epel-10.html) | Yes — EPEL via `_internal.epel_rhel_family` in `method-package` manifest[^devfeats-epel-internal] |
+| **zypper** | openSUSE | **`python3-ruff`** | Yes | No | verify at install time | [upstream installation.md](https://raw.githubusercontent.com/astral-sh/ruff/main/docs/installation.md) | Yes — `zypper: python3-ruff` alias |
+| **apt** | Debian **sid** only | `ruff` | Yes (unstable) | No | 0.0.291+dfsg1-4 (stale) | [packages.debian.org sid/ruff](https://packages.debian.org/sid/ruff) | Maybe — narrow `when`; not Repology-sourced |
+| **apt** | Debian bookworm/trixie | — | **No** | — | — | packages.debian.org | No |
+| **apt** | Ubuntu noble–resolute | — | **No** | — | — | packages.ubuntu.com | No |
+
+**Channels documented upstream but out of DevFeats `ospkg` scope** (document in tool-ref, do not implement as `method.package`):
+
+| Channel | Package | Notes |
+|---------|---------|-------|
+| Conda (conda-forge) | `ruff` | 0.15.20 via anaconda.org; use [`install-miniforge`](../../install-miniforge/metadata.yaml) / conda workflows |
+| pkgx | `ruff` | Upstream install.md only |
+| PyPI / uv / pipx | `ruff` | Separate install path; not ospkg |
+| Nix / Nixpkgs | `ruff` | Repology; tool-ref defers Nix |
+| MacPorts | `ruff` | No macports ospkg backend |
+| Gentoo | `dev-python/ruff` | Portage category path |
+| FreeBSD / OpenBSD / NetBSD | `ruff` / `py*-ruff` | pkg systems not in ospkg |
+| Void | `ruff` | xbps not in ospkg |
+| Docker | `ghcr.io/astral-sh/ruff` | Container-only (separate section) |
+
+**`upstream-package` vs EPEL**: EPEL on RHEL is **`method.package`**, not `upstream-package`. EPEL is a Fedora community third-party repo — not Astral's vendor repo. DevFeats models RHEL-family support as **EPEL entries in the `method-package` dependency manifest** (shared via `_internal.epel_rhel_family` in [`metadata.shared.yaml`](../../metadata.shared.yaml)), the same pattern as [`install-ripgrep`](../../install-ripgrep/metadata.yaml). Astral publishes no vendor apt/dnf repo for Ruff.
 
 #### Dependencies
 
@@ -457,24 +492,61 @@ Broader distro coverage is indexed via Repology (linked from upstream installati
 ##### Platform-Specific Dependencies
 
 - Root/sudo for system-wide package installation on most distros.
+- **RHEL-family (dnf/yum)**: EPEL GPG key + repo (configured in the feature's `method-package` manifest via shared `_internal.epel_rhel_family`) and **CRB / codeready-builder / PowerTools** enabled on the host per EPEL documentation before `dnf install ruff` succeeds.
 
 #### Installation Steps
 
-Example (Debian/Ubuntu via apt if packaged, or Homebrew on macOS):
+```bash
+# Homebrew (macOS/Linux)
+brew install ruff
+
+# Arch
+sudo pacman -S --noconfirm ruff
+
+# Alpine (community repo)
+sudo apk add --no-cache ruff
+
+# Fedora (base repos — no EPEL)
+sudo dnf install -y ruff
+
+# openSUSE (note package name)
+sudo zypper install -y python3-ruff
+
+# Debian sid only (when packaged; version may lag upstream)
+sudo apt-get update && sudo apt-get install -y ruff
+```
+
+EPEL setup (required on **RHEL-compatible** systems before `dnf install ruff`; **not** required on Fedora):[^fedora-ruff-epel]
 
 ```bash
-brew install ruff
-# or
-sudo apt-get update && sudo apt-get install -y ruff   # when available in configured repos
+# Pattern for RHEL-compatible clones — replace {N} with 8, 9, or 10:
+sudo dnf config-manager --set-enabled crb
+sudo dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-{N}.noarch.rpm
+sudo dnf install -y ruff
 ```
+
+The DevFeats `install-ruff` feature configures EPEL keys/repos automatically in its `method-package` manifest (via `_internal.epel_rhel_family`); CRB/PowerTools enablement remains a host prerequisite.
 
 #### Installation Verification
 
-- `ruff --version`
+```bash
+command -v ruff
+ruff --version
+```
+
+Package-manager level verification:
+
+```bash
+brew info ruff          # Homebrew
+dnf info ruff           # Fedora / EPEL
+apk info ruff           # Alpine
+zypper info python3-ruff  # openSUSE
+dpkg -s ruff            # Debian sid
+```
 
 #### Configuration Options
 
-- **Version Selection**: package-manager version pins only (e.g. `brew install ruff@0.15.20` when supported); often tracks distro/brew latest.
+- **Version Selection**: package-manager version pins only (e.g. `brew install ruff@0.15.20` when supported); often tracks distro/brew latest. Debian sid ships `0.0.291+dfsg1-4`, which does not match upstream semver.
 - **Installation Path**: distro-defined (`/usr/bin`, Homebrew prefix, etc.).
 - **User Targeting**: system-wide by default.
 - **Required Privileges**: root/sudo on most Linux distros.
@@ -491,14 +563,23 @@ sudo apt-get update && sudo apt-get install -y ruff   # when available in config
 
 #### Changing Versions and Uninstallation
 
-- **Upgrading/Downgrading**: `brew upgrade ruff`, `apt-get install --only-upgrade ruff`, `conda update ruff`, etc.
+- **Upgrading/Downgrading**: `brew upgrade ruff`, `dnf upgrade ruff`, `apk upgrade ruff`, etc.
 - **Uninstallation**: `brew uninstall ruff`, `apt-get remove ruff`, `pacman -R ruff`, etc.
 - **Idempotency**: package manager handles reinstall semantics.
 
 #### Notes and Best Practices
 
 - Distro versions often lag upstream; not recommended when exact version pinning is required.
+- **Do not conflate Fedora and RHEL-family**: `dnf install ruff` succeeds on Fedora without EPEL but **fails** on stock RHEL/Rocky/Alma/CentOS Stream images until EPEL (and typically CRB) is configured.
+- **Ubuntu is not packaged** (noble through resolute as of 2026-06-29); use `method=binary` or `method=cargo` on Ubuntu devcontainers.
+- **Debian sid** has `ruff` but at a very stale version; cite [packages.debian.org](https://packages.debian.org/sid/ruff) directly (Repology may not list Debian for Ruff).
+- **`registers_as: ruff`** should be set so `method=auto` PM version checks query `ruff`.
+- **openSUSE** package name is **`python3-ruff`**, not `ruff`; use the `zypper:` alias in the manifest.
 - Simple fallback when release binaries are inconvenient and approximate versions suffice.
+
+#### Implementation implication
+
+A DevFeats feature using `method.package` and `_dependencies.run.method-package` works on **apk, brew, Fedora dnf, pacman, and zypper** out of the box. **RHEL-family dnf/yum** requires the shared EPEL manifest entry (`_internal.epel_rhel_family` + pyserials substitution). **Debian sid** may be included with a narrow `when` if desired. **Ubuntu apt** should be excluded. No `upstream-package` method — Astral has no vendor OS repo.
 
 ### Cargo Installation
 
@@ -624,14 +705,23 @@ This provides `ruff` inside the container only; it does not install `ruff` on th
 
 Ruff works in standard devcontainer environments without special runtime privileges. Key considerations:
 
-- **Recommended devcontainer recipe** (Python-independent, no profile mutation):
+- **Recommended DevFeats recipe** (Python-independent, version-pinned, no shell profile mutation):
 
-```bash
-curl -LsSf https://astral.sh/ruff/0.15.20/install.sh | env RUFF_UNMANAGED_INSTALL=/usr/local/bin sh
-```
+  Use the [`install-ruff`](../../install-ruff/metadata.yaml) feature with `method=binary` (or `method=auto`, which selects binary on supported platforms). The feature downloads the matching GitHub release tarball with SHA-256 verification, installs `ruff` to the configured prefix (default `/usr/local/bin`), and writes `$XDG_CONFIG_HOME/ruff/ruff-receipt.json` per user via `configure_users: true` — replicating the standalone installer's receipt side effect without `curl | sh`.
 
-`RUFF_UNMANAGED_INSTALL` forces install to `/usr/local/bin`, disables PATH profile mutation, and skips install receipt/updater side effects. Alternatively, download the matching GitHub release tarball and `install -m 0755` the `ruff` binary to `/usr/local/bin` (no installer script, no receipt).
+  ```json
+  {
+    "features": {
+      "ghcr.io/quantized8/devfeats/install-ruff:0.1.0": {
+        "version": "0.15.20",
+        "method": "binary"
+      }
+    }
+  }
+  ```
 
+- **Manual binary install** (when not using the feature): download the matching GitHub release tarball and `install -m 0755` the `ruff` binary to `/usr/local/bin`. Optionally write the install receipt manually if tooling expects it.
+- **Not recommended for DevFeats features**: `curl -LsSf https://astral.sh/ruff/0.15.20/install.sh | env RUFF_UNMANAGED_INSTALL=/usr/local/bin sh` — DevFeats uses `method.binary` (direct tarball + sidecar), not `method.script`, for cargo-dist installers without tool-specific logic.
 - Alternative when `install-uv` is already present: `uv tool install ruff@0.15.20` (ensure uv tool bin dir is on `PATH`).
 - **Platform mapping in containers**:
   - Debian/Ubuntu devcontainers (x86_64): `x86_64-unknown-linux-gnu` tarball or standalone installer.
@@ -735,3 +825,7 @@ curl -LsSf https://astral.sh/ruff/0.15.20/install.sh | env RUFF_UNMANAGED_INSTAL
 [^extra-feature-json]: [devcontainers-extra/ruff `devcontainer-feature.json`](https://raw.githubusercontent.com/devcontainers-extra/features/main/src/ruff/devcontainer-feature.json) — Feature options and VS Code extension customization.
 
 [^devcontainers-python]: [devcontainers/features Python alternate tools test](https://raw.githubusercontent.com/devcontainers/features/main/test/python/install_alternate_tools.sh) — Installs `ruff` via pip among optional Python tools.
+
+[^fedora-ruff-epel]: [Fedora Packages — ruff on EPEL 10](https://packages.fedoraproject.org/pkgs/ruff/ruff/epel-10.html) — Confirms `ruff` in EPEL for Enterprise Linux 10; verify EL 8/9 during feature testing.
+
+[^devfeats-epel-internal]: [DevFeats `metadata.shared.yaml`](../../metadata.shared.yaml) — Shared `_internal.epel_rhel_family` fragment referenced via pyserials in feature `_dependencies.run.method-package.packages`.

@@ -1,0 +1,73 @@
+version: 0.1.0
+name: Ruff Installation
+description: Install [Ruff](https://astral.sh/ruff) — an extremely fast Python linter and code formatter, written in Rust.
+keywords:
+  - ruff
+  - python
+  - linter
+  - formatter
+  - astral
+  - cli
+_long_description: |-
+  Installs [Ruff](https://astral.sh/ruff), an extremely fast Python linter and code formatter
+  written in Rust by Astral. Ruff combines linting (`ruff check`), formatting (`ruff format`),
+  import sorting, auto-fixes, and a built-in language server in a single CLI binary with no
+  Python runtime dependency.
+
+  By default, `method=auto` downloads the official GitHub release binary with per-asset
+  SHA-256 verification. On platforms where OS packages ship current versions, installation
+  falls back to the package manager. Cargo-based installation is also available when a Rust
+  toolchain is present.
+_tool_name: ruff
+_options:
+  configure_users: true
+  verify:
+    args: "--version"
+    description: Verify Ruff is installed and working.
+  gh_repo: astral-sh/ruff
+  version:
+    resolution: github_release
+  method:
+    binary:
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/ruff-{plat.rust_triple}{plat.kernel==Windows?.zip:.tar.gz}"
+      sidecar_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/ruff-{plat.rust_triple}{plat.kernel==Windows?.zip:.tar.gz}.sha256"
+      binary_src:
+        - ruff
+      when:
+        - {plat.kernel: darwin, plat.machine_release: [amd64, arm64]}
+        - {plat.kernel: linux, plat.machine_release: [amd64, arm64, armv7, i386, s390x]}
+        - {plat.kernel: windows, plat.machine_release: [amd64, arm64, i386]}
+    package:
+      when:
+        - plat.pm: [apk, brew, pacman, zypper]
+        - {plat.pm: [dnf, yum], os.id: fedora}
+        - {plat.pm: apt, os.id: debian, os.version_codename: sid}
+        - {plat.pm: [dnf, yum], os.id: [rhel, rocky, almalinux, centos, ol], os.version_id_major: ["8", "9", "10"]}
+      registers_as: ruff
+    cargo:
+      crate: ruff
+      args: ["--locked"]
+  prefix:
+    bins: [ruff]
+    applies_when:
+      - method: [binary, cargo]
+  completions:
+    subcmd: "generate-shell-completion"
+    shells: [bash, zsh, fish]
+customizations:
+  vscode:
+    extensions:
+      - charliermarsh.ruff
+_dependencies:
+  run:
+    base:
+      packages:
+        - ca-certificates
+    method-package:
+      packages:
+        - name: ruff
+          version: "{feat.pm_version}"
+          zypper: python3-ruff
+          when: ${{ _options.method.package.when }}$
+
+        - ${{ _internal.epel_rhel_family }}$
