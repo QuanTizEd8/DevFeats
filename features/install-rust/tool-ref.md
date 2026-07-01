@@ -46,7 +46,7 @@ There are several ways to install the Rust toolchain. The primary and recommende
 
 #### Supported Platforms
 
-- **Full support**: recent versions of Debian/Ubuntu, RedHat Enterprise Linux, Fedora, CentOS, AlmaLinux, RockyLinux, Mariner, and other glibc-based Linux distributions with `apt`, `dnf`, `yum`, `microdnf`, or `tdnf` package managers.
+- **All Linux distributions**: any Linux distribution with glibc or musl libc on supported architectures (`x86_64`, `aarch64`, `i686`, `armv7`, `riscv64gc`, etc.). The script auto-detects libc flavor and downloads the appropriate binary. No specific package manager is required — the `rustup-init.sh` script is self-contained and only needs `curl` or `wget` for downloading.[^rustup-init-sh]
 - **macOS**: x86_64 (Intel) and aarch64 (Apple Silicon) with macOS 10.13+
 - **Windows**: x86_64, i686, and aarch64 via `rustup-init.exe` (requires MSVC build tools or MSYS2/MinGW for GNU builds)
 - **FreeBSD, NetBSD, illumos, Solaris**: via the Unix shell script
@@ -331,7 +331,7 @@ Uninstallation requires no special privileges for user-local installations. For 
 
 ##### Idempotency
 
-Running `rustup-init` on a system where `rustup` is already installed will produce a warning and skip the installation, unless `-y` is used, in which case it checks for self-updates and performs them if needed. The toolchain installation itself is idempotent — running `rustup toolchain install stable` when stable is already at the latest version will be a no-op. When a specific version is requested and already installed, it will not be re-downloaded. The `rustup update` command is also idempotent — it only downloads toolchain updates when newer versions are available.
+Running `rustup-init` on a system where `rustup` is already installed will check for updates to `rustup` itself and perform them if needed (no "skip" — it proactively checks for and applies self-updates). The toolchain installation itself is idempotent — running `rustup toolchain install stable` when stable is already at the latest version will be a no-op. When a specific version is requested and already installed, it will not be re-downloaded. The `rustup update` command is also idempotent — it only downloads toolchain updates when newer versions are available.[^rustup-installation]
 
 #### Details
 
@@ -353,14 +353,15 @@ The `rustup-init.sh` script (≈930 lines of POSIX shell code) performs the foll
      - For `wget`: uses `--https-only --secure-protocol=TLSv1_2`
      - Supports `--retry 3 -C -` for curl to resume interrupted downloads
      - Enforces strong TLS cipher suites (AES-128-GCM, CHACHA20-POLY1305, AES-256-GCM) via `--ciphers`
-   - Detects "snap" curl on Linux and refuses to use it due to sandboxing restrictions
+    - Detects "snap" curl on Linux and falls back to `wget` if available; errors out with instructions to reinstall curl via a non-snap package manager if neither works
 
 3. **Binary download**:
    - Constructs the download URL: `$RUSTUP_UPDATE_ROOT/dist/$ARCH/rustup-init` (or with `$RUSTUP_VERSION` under `archive/` subpath)
    - Downloads the `rustup-init` binary and makes it executable
 
 4. **Execution**:
-   - If stdin is not a terminal (piped script scenario), connects `/dev/tty` to the installer's stdin for interactive prompts
+    - If stdin is not a terminal (piped script scenario) and stdout is a terminal (`[ -t 1 ]`), connects `/dev/tty` to the installer's stdin for interactive prompts
+    - If both stdin and stdout are non-TTY (fully non-interactive without `-y`), the script errors out: "Unable to run interactively. Run with -y to accept defaults, --help for additional options"
    - Runs the downloaded `rustup-init` binary with any passed arguments and the auto-detected `--default-host` flag (for Windows)
    - On success, removes the temporary files
 
@@ -415,7 +416,7 @@ Standalone installers are signed with the Rust GPG signing key. Signatures (`.as
 gpg --verify rust-1.96.1-x86_64-unknown-linux-gnu.tar.xz.asc
 ```
 
-Standalone installers also have `.sha256` checksum files available alongside the downloads (e.g., `rust-1.96.1-x86_64-unknown-linux-gnu.tar.xz.sha256`), which can be used for verification without GPG.[^forge-standalone-installers]
+Standalone installers also have `.sha256` checksum files available alongside the downloads (e.g., `rust-1.96.1-x86_64-unknown-linux-gnu.tar.xz.sha256`), which can be used for verification without GPG. These files follow the same URL pattern as the installer archives — appending `.sha256` to the archive URL.[^rustup-other-install]
 
 The Rust signing key is available at https://static.rust-lang.org/rust-key.gpg.ascii.
 
@@ -449,8 +450,8 @@ On Unix, the `install.sh` script writes to system directories and typically need
 ##### Tool-Specific Configurations
 
 Standalone installers have minimal configuration options:
-- `--prefix=<path>` — Set the installation prefix (Unix only)
-- `--disable-ldconfig` — Skip running ldconfig after installation (Unix only)
+- `--prefix=<path>` — Set the installation prefix (Unix only)[^forge-standalone-installers]
+- `--disable-ldconfig` — Skip running ldconfig after installation (Unix only)[^rust-installer-template]
 - No post-install configuration is created (no `settings.toml`, no profile modifications)
 
 #### Post-Installation Steps and Cleanup
@@ -458,6 +459,22 @@ Standalone installers have minimal configuration options:
 ##### PATH Setup
 
 Standalone installers place binaries in `/usr/local/bin` by default (or in the directory specified by `--prefix`). Ensure this directory is on `PATH` for the tools to be accessible.
+
+##### Configuration Files
+
+Standalone installers do not create any configuration files. No `settings.toml` is created — use `rustup` for toolchain management.
+
+##### Environment Variables
+
+Standalone installers do not set any environment variables. The installation prefix's `bin` directory must be manually added to `PATH`.
+
+##### Activation Scripts
+
+No activation scripts are provided. The installed binaries are available immediately after installation (subject to `PATH` configuration).
+
+##### Shell Completions
+
+Standalone installers do not provide shell completion scripts. Use `rustup` for completion support.
 
 ##### Cleanup
 
@@ -471,11 +488,15 @@ Standalone installers do not support version management. To switch versions, dow
 
 ##### Uninstallation
 
-To uninstall, run the uninstall script included in the installed directory (e.g., `/usr/local/lib/rustlib/uninstall.sh`) or remove the Rust files manually from `/usr/local/lib/rustlib/` and the binaries from `/usr/local/bin/`.[^forge-standalone-installers]
+To uninstall, run the uninstall script included in the installed directory (e.g., `/usr/local/lib/rustlib/uninstall.sh`) or remove the Rust files manually from `/usr/local/lib/rustlib/` and the binaries from `/usr/local/bin/`.[^rust-installer-readme]
 
 ##### Idempotency
 
 Re-running the same standalone installer version overwrites the previous installation with identical files and is effectively a no-op.
+
+#### Details
+
+The standalone installer `install.sh` (and its macOS `.pkg` and Windows `.msi` equivalents) is generated from the `rust-installer` template (`src/tools/rust-installer/install-template.sh` in the Rust repository). It copies files from the extracted archive into the target prefix directory, runs `ldconfig` on Linux to register shared libraries (unless `--disable-ldconfig` is specified), and creates an installation manifest and uninstall script in `$libdir/rustlib/`.[^rust-installer-template]
 
 #### Notes and Best Practices
 
@@ -509,6 +530,8 @@ rustup default stable
 
 # macOS (Homebrew)
 brew install rustup
+# The rustup formula is keg-only; if rustup is not on PATH, add it:
+# export PATH="$(brew --prefix rustup)/bin:$PATH"
 rustup default stable
 
 # Arch Linux
@@ -549,13 +572,6 @@ All OS package manager installations require `sudo` (or equivalent administrativ
 
 The OS package manager itself does not offer Rust-specific configuration options. After installation, `rustup` must be used to select a default toolchain (e.g., `rustup default stable`) and manage components and targets.
 
-#### Notes and Best Practices
-
-- The system package manager version of `rustup` may lag behind the latest release. Consider using the official `rustup-init.sh` script for the most up-to-date version.
-- On Debian-based systems, the `rustup` package installs the `rustup-init` command, which then needs to be run to complete installation. Some distributions (APT on Debian 13+, pacman) provide the `rustup` command with proxies for Rust tools directly.
-- The Homebrew `rustup` formula is keg-only — the `rustup` binary is not linked into `/usr/local/bin` by default. Add `$(brew --prefix rustup)/bin` to `PATH` if needed.
-- On Arch Linux, `rustup self update` will **not** work when installed via `pacman`; the package must be updated by `pacman` itself. This limitation does not affect other `rustup` functionality such as `rustup update` for updating Rust toolchains.[^archlinux-wiki-rust]
-
 #### Post-Installation Steps and Cleanup
 
 ##### PATH Setup
@@ -567,6 +583,18 @@ After installing the `rustup` package from the OS package manager, users must st
 ##### Configuration Files
 
 The OS package manager may install a default `settings.toml` configuration file. Refer to the distribution's documentation for details.
+
+##### Environment Variables
+
+The OS package manager installation itself does not set `CARGO_HOME` or `RUSTUP_HOME`. These are managed by `rustup` at runtime.
+
+##### Activation Scripts
+
+No activation scripts are created by the OS package manager. After installing a toolchain with `rustup default stable`, the Rust proxy binaries (in `~/.cargo/bin`) must be on `PATH`.
+
+##### Shell Completions
+
+Shell completions are managed through the OS package manager if provided, or can be generated via `rustup completions` as described in the `rustup-init` section.
 
 ##### Cleanup
 
@@ -591,6 +619,13 @@ Re-installing the `rustup` package via the OS package manager is idempotent — 
 #### Details
 
 The OS package manager's `rustup` packages typically install the `rustup-init` binary (or the `rustup` binary itself for newer distributions). On Debian-based systems (Debian 13+, Ubuntu 24.04+), the package installs the `rustup` binary with symlinks for `rustc` and `cargo`. On Arch Linux, the package provides `rustup` with symlinks to common Rust executables in `/usr/bin/`. The Homebrew formula is keg-only, meaning it does not create symlinks in `/usr/local/bin` to avoid conflicts with the Rust toolchain installed via `rustup-init.sh`.
+
+#### Notes and Best Practices
+
+- The system package manager version of `rustup` may lag behind the latest release. Consider using the official `rustup-init.sh` script for the most up-to-date version.
+- On Debian-based systems, the `rustup` package installs the `rustup-init` command, which then needs to be run to complete installation. Some distributions (APT on Debian 13+, pacman) provide the `rustup` command with proxies for Rust tools directly.
+- The Homebrew `rustup` formula is keg-only — the `rustup` binary is not linked into `/usr/local/bin` by default. Add `$(brew --prefix rustup)/bin` to `PATH` if needed.
+- On Arch Linux, `rustup self update` will **not** work when installed via `pacman`; the package must be updated by `pacman` itself. This limitation does not affect other `rustup` functionality such as `rustup update` for updating Rust toolchains.[^archlinux-wiki-rust]
 
 ## Dev Container Setup
 
@@ -691,6 +726,10 @@ When installing the Rust toolchain in a devcontainer environment, the following 
 [^devcontainers-rust-json]: [devcontainers/features — Rust devcontainer-feature.json](https://github.com/devcontainers/features/blob/main/src/rust/devcontainer-feature.json). Metadata for the official devcontainers Rust feature, including options, containerEnv, capabilities, and VS Code extension recommendations.
 
 [^devcontainers-rust-image]: [microsoft/devcontainers-rust — Docker Hub](https://hub.docker.com/r/microsoft/devcontainers-rust). Pre-built Rust devcontainer images on Docker Hub.
+
+[^rust-installer-template]: [rust-installer — install-template.sh — GitHub](https://github.com/rust-lang/rust/blob/master/src/tools/rust-installer/install-template.sh). Source template for the standalone installer `install.sh` script. Defines all available installation options including `--prefix`, `--disable-ldconfig`, `--verbose`, and others.
+
+[^rust-installer-readme]: [rust-installer — README.md — GitHub](https://github.com/rust-lang/rust/blob/master/src/etc/installer/README.md). Official README for the Rust standalone installer, documenting the `install.sh` and `uninstall.sh` usage including the uninstall script path at `/usr/local/lib/rustlib/uninstall.sh`.
 
 [^forge-standalone-installers]: [Rust Forge — Other Installation Methods](https://forge.rust-lang.org/infra/other-installation-methods.html). Official documentation on standalone installers, source code downloads, and GPG signature verification.
 
