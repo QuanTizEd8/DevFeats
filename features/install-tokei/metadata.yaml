@@ -55,29 +55,9 @@ _dependencies:
       packages:
         - name: tokei
           version: "{feat.pm_version}"
-          when:
-            - plat.pm: [apt, apk, brew, pacman, zypper]
-            - {plat.pm: [dnf, yum], os.id: fedora}
+          when: ${{ _options.method.package.when }}$
 
-        - label: RHEL-family via EPEL
-          when:
-            plat.pm: [dnf, yum]
-            os.id: [rhel, rocky, almalinux, centos, ol]
-            os.version_id_major: ["8", "9", "10"]
-          keys:
-            - url: https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-{os.version_id_major}
-              dest: /etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-{os.version_id_major}
-          repos:
-            - |
-              [epel]
-              name=Extra Packages for Enterprise Linux $releasever - $basearch
-              metalink=https://mirrors.fedoraproject.org/metalink?repo=epel-$releasever&arch=$basearch
-              enabled=1
-              gpgcheck=1
-              gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-$releasever
-          packages:
-            - name: tokei
-              version: "{feat.pm_version}"
+        - ${{ _internal.epel_rhel_family }}$
   build:
     method-cargo:
       packages:

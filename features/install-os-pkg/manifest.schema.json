@@ -385,10 +385,7 @@
     },
     "groupObject": {
       "type": "object",
-      "description": "A group of packages that share conditions, flags, and/or inline setup. The group's 'when', 'flags', 'keys', 'repos', 'prescript', and 'script' apply to every package in the group. This is a logical tree for co-authoring, not a distro package group name (for dnf `group install` / zypper patterns, use the top-level `groups` key).\n\nGroups can nest: a group's 'packages' array can contain strings, package objects, or further groups. Optional 'label' is for human log messages only.",
-      "required": [
-        "packages"
-      ],
+      "description": "A group of packages that share conditions, flags, and/or inline setup. The group's 'when', 'flags', 'keys', 'repos', 'prescript', and 'script' apply to every package in the group. This is a logical tree for co-authoring, not a distro package group name (for dnf `group install` / zypper patterns, use the top-level `groups` key).\n\nGroups can nest: a group's 'packages' array can contain strings, package objects, or further groups. Optional 'label' is for human log messages only. When 'packages' is omitted, the group serves as a conditional grouping for keys, repos, and scripts without installing any packages.",
       "additionalProperties": false,
       "properties": {
         "packages": {

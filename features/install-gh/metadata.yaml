@@ -144,6 +144,11 @@ _dependencies:
       packages:
         - ca-certificates
     method-upstream-package:
+      packages:
+        - name: gh
+          apk: github-cli
+          pacman: github-cli
+          version: "{feat.pm_version}"
       apt:
         keys:
           - url: https://cli.github.com/packages/githubcli-archive-keyring.gpg
@@ -152,54 +157,18 @@ _dependencies:
         repos:
           - deb [arch={plat.deb_arch:lower} signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg]
             https://cli.github.com/packages stable main
-        packages:
-          - name: gh
-            version: "{feat.pm_version}"
       dnf:
         repos:
-          - |
+          - &rpm-repo |
             [gh-cli]
             name=packages for the GitHub CLI
             baseurl=https://cli.github.com/packages/rpm
             enabled=1
             gpgcheck=1
             gpgkey=https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x23F3D4EA75716059
-        packages:
-          - name: gh
-            version: "{feat.pm_version}"
       yum:
         repos:
-          - |
-            [gh-cli]
-            name=packages for the GitHub CLI
-            baseurl=https://cli.github.com/packages/rpm
-            enabled=1
-            gpgcheck=1
-            gpgkey=https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x23F3D4EA75716059
-        packages:
-          - name: gh
-            version: "{feat.pm_version}"
+          - *rpm-repo
       zypper:
         repos:
-          - |
-            [gh-cli]
-            name=packages for the GitHub CLI
-            baseurl=https://cli.github.com/packages/rpm
-            enabled=1
-            gpgcheck=1
-            gpgkey=https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x23F3D4EA75716059
-        packages:
-          - name: gh
-            version: "{feat.pm_version}"
-      apk:
-        packages:
-          - name: github-cli
-            version: "{feat.pm_version}"
-      pacman:
-        packages:
-          - name: github-cli
-            version: "{feat.pm_version}"
-      brew:
-        packages:
-          - name: gh
-            version: "{feat.pm_version}"
+          - *rpm-repo

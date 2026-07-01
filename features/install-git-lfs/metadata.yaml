@@ -64,8 +64,6 @@ _options:
         - {plat.pm: [dnf, yum], os.id: [rhel, rocky], os.version_id_major: "9", plat.machine_release: [amd64, arm64]}
     package:
       registers_as: git-lfs
-      when:
-        plat.pm: [apt, apk, dnf, yum, pacman, zypper, brew]
     source:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/git-lfs-v{feat.version}.tar.gz"
       sidecar_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/sha256sums.asc"
@@ -189,12 +187,6 @@ _dependencies:
       packages:
         - name: git-lfs
           version: "{feat.pm_version}"
-          when:
-            plat.pm: [apt, apk, dnf, yum, pacman, zypper]
-      brew:
-        packages:
-          - name: git-lfs
-            version: "{feat.pm_version}"
     method-upstream-package:
       when: *packagecloud_when
       packages:
@@ -209,7 +201,7 @@ _dependencies:
           - "deb-src [signed-by=/etc/apt/keyrings/github_git-lfs-archive-keyring.gpg] https://packagecloud.io/github/git-lfs/{os.id}/ {os.version_codename} main"
       dnf:
         repos:
-          - |
+          - &packagecloud-rpm-repo |
             [github_git-lfs]
             name=github_git-lfs
             baseurl=https://packagecloud.io/github/git-lfs/el/{os.version_id_major}/$basearch
@@ -233,28 +225,7 @@ _dependencies:
             metadata_expire=300
       yum:
         repos:
-          - |
-            [github_git-lfs]
-            name=github_git-lfs
-            baseurl=https://packagecloud.io/github/git-lfs/el/{os.version_id_major}/$basearch
-            repo_gpgcheck=1
-            gpgcheck=0
-            enabled=1
-            gpgkey=https://packagecloud.io/github/git-lfs/gpgkey
-            sslverify=1
-            sslcacert=/etc/pki/tls/certs/ca-bundle.crt
-            metadata_expire=300
-
-            [github_git-lfs-source]
-            name=github_git-lfs-source
-            baseurl=https://packagecloud.io/github/git-lfs/el/{os.version_id_major}/SRPMS
-            repo_gpgcheck=1
-            gpgcheck=0
-            enabled=1
-            gpgkey=https://packagecloud.io/github/git-lfs/gpgkey
-            sslverify=1
-            sslcacert=/etc/pki/tls/certs/ca-bundle.crt
-            metadata_expire=300
+          - *packagecloud-rpm-repo
   build:
     method-source:
       packages:

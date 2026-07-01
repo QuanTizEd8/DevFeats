@@ -558,6 +558,37 @@ def test_schema_accepts_internal_and_files() -> None:
     assert not errors
 
 
+def test_load_resolves_epel_rhel_family_from_internal() -> None:
+    """Features reference ``_internal.epel_rhel_family`` via pyserials."""
+    loader = MetadataLoader()
+    shared = loader._shared_metadata
+    epel = shared["_internal"]["epel_rhel_family"]
+
+    for feat_id, package_name in (
+        ("install-ripgrep", "ripgrep"),
+        ("install-tokei", "tokei"),
+    ):
+        meta = loader.load(feat_id)[feat_id]
+        packages = meta["_dependencies"]["run"]["method-package"]["packages"]
+        epel_entries = [
+            p
+            for p in packages
+            if isinstance(p, dict) and p.get("label") == epel["label"]
+        ]
+        assert len(epel_entries) == 1, feat_id
+        entry = epel_entries[0]
+        assert entry["when"] == epel["when"]
+        assert entry["keys"] == epel["keys"]
+        assert entry["repos"] == epel["repos"]
+
+        manifest_default = meta["options"]["ospkg_manifest_method_package_run"][
+            "default"
+        ]
+        assert "RHEL-family via EPEL" in manifest_default
+        assert package_name in manifest_default
+        assert "RPM-GPG-KEY-EPEL" in manifest_default
+
+
 @pytest.mark.parametrize(
     "files_entry",
     [

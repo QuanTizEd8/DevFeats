@@ -58,9 +58,9 @@ _dependencies:
     method-upstream-package:
       packages:
         - name: task
+          brew: go-task
           version: "{feat.pm_version}"
-          when:
-            plat.pm: [apt, apk, dnf, yum, zypper]
+          when: ${{ _options.method.upstream-package.when }}$
       apt:
         keys:
           - url: "https://dl.cloudsmith.io/public/task/task/gpg.046FD1186CA342F0.key"
@@ -76,10 +76,10 @@ _dependencies:
           - "https://dl.cloudsmith.io/public/task/task/alpine/v{os.version_id_mm}/main"
       dnf:
         repos:
-          - |
+          - &rpm-repo |
             [task-task]
             name=task-task
-            baseurl=https://dl.cloudsmith.io/public/task/task/rpm/{id==fedora?fedora:el}/{id==fedora?{os.version_id}:{os.version_id_major}}/$basearch
+            baseurl=https://dl.cloudsmith.io/public/task/task/rpm/{plat.pm==zypper?opensuse:{os.id==fedora?fedora:el}}/{plat.pm==zypper?{os.version_id}:{os.id==fedora?{os.version_id}:{os.version_id_major}}}/$basearch
             repo_gpgcheck=1
             enabled=1
             skip_if_unavailable=1
@@ -91,36 +91,8 @@ _dependencies:
             type=rpm-md
       yum:
         repos:
-          - |
-            [task-task]
-            name=task-task
-            baseurl=https://dl.cloudsmith.io/public/task/task/rpm/el/{os.version_id_major}/$basearch
-            repo_gpgcheck=1
-            enabled=1
-            skip_if_unavailable=1
-            gpgkey=https://dl.cloudsmith.io/public/task/task/gpg.046FD1186CA342F0.key
-            gpgcheck=1
-            sslverify=1
-            sslcacert=/etc/pki/tls/certs/ca-bundle.crt
-            metadata_expire=300
-            type=rpm-md
+          - *rpm-repo
       zypper:
         repos:
-          - |
-            [task-task]
-            name=task-task
-            baseurl=https://dl.cloudsmith.io/public/task/task/rpm/opensuse/{os.version_id}/$basearch
-            repo_gpgcheck=1
-            enabled=1
-            skip_if_unavailable=1
-            gpgkey=https://dl.cloudsmith.io/public/task/task/gpg.046FD1186CA342F0.key
-            gpgcheck=1
-            sslverify=1
-            sslcacert=/etc/pki/tls/certs/ca-bundle.crt
-            metadata_expire=300
-            type=rpm-md
-      brew:
-        packages:
-          - name: go-task
-            version: "{feat.pm_version}"
+          - *rpm-repo
 # installsAfter: []

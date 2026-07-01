@@ -33,7 +33,13 @@ _options:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/yq_{plat.kernel:lower}_{plat.machine_release}"
       when: {plat.machine_release: [amd64, arm64]}
     package:
-      when: {plat.pm: [dnf, apk, zypper, brew, pacman]}
+      when:
+        - plat.pm: brew
+        - {plat.pm: [dnf, yum], os.id_like: rhel}
+        - {plat.pm: dnf, os.id: fedora}
+        - plat.pm: pacman
+        - {plat.pm: zypper, os.id: [opensuse-tumbleweed, opensuse-leap, opensuse-slowroll]}
+        - {plat.pm: apk, os.version_id: {gte: "3.16"}}
   prefix:
     bins: [yq]
     applies_when:
@@ -45,53 +51,15 @@ customizations:
 _dependencies:
   run:
     method-package:
-      brew:
-        packages:
-          - name: yq
-            version: "{feat.pm_version}"
-      pacman:
-        packages:
-          - name: go-yq
-            version: "{feat.pm_version}"
-      apk:
-        packages:
-          # Alpine 3.20+ renamed package to yq-go.
-          - name: yq-go
-            version: "{feat.pm_version}"
-            when:
-              os.version_id:
-                - "3.20"
-                - "3.21"
-                - "3.22"
-                - "3.23"
-          # Alpine <=3.19 used yq for mikefarah/yq.
-          - name: yq
-            version: "{feat.pm_version}"
-            when:
-              os.version_id:
-                - "3.16"
-                - "3.17"
-                - "3.18"
-                - "3.19"
-      dnf:
-        packages:
-          - name: yq
-            version: "{feat.pm_version}"
-            when:
-              - os.id: fedora
-              - os.id_like: rhel
-      yum:
-        packages:
-          - name: yq
-            version: "{feat.pm_version}"
-            when:
-              os.id_like: rhel
-      zypper:
-        packages:
-          - name: yq
-            when:
-              os.id:
-                - opensuse-tumbleweed
-                - opensuse-leap
-                - opensuse-slowroll
+      packages:
+        - name: yq
+          pacman: go-yq
+          version: "{feat.pm_version}"
+          when: {plat.pm: {ne: [apt, apk]}}
+        - name: yq-go
+          version: "{feat.pm_version}"
+          when: {plat.pm: apk, os.version_id: {gte: "3.20"}}
+        - name: yq
+          version: "{feat.pm_version}"
+          when: {plat.pm: apk, os.version_id: {lt: "3.20"}}
 # installsAfter: []

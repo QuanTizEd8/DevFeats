@@ -45,52 +45,20 @@ _dependencies:
     method-package:
       # Installed via `ospkg_manifest_method_package_run` / `__dep_install_for_method__`.
       # Keep this aligned with upstream package availability.
-      apt:
-        packages:
-          # Debian repositories provide `oras`.
-          - name: oras
-            version: "{feat.pm_version}"
-            when:
-              os.id: debian
-          # Ubuntu repositories provide `oras` starting from 25.04.
-          - name: oras
-            version: "{feat.pm_version}"
-            when:
-              os.id: ubuntu
-              os.version_id:
-                - "25.04"
-                - "25.10"
-                - "26.04"
-      apk:
-        packages:
-          # Alpine package name differs (`oras-cli` provides cmd:oras).
-          - name: oras-cli
-            version: "{feat.pm_version}"
-      dnf:
-        packages:
-          # Fedora package name differs (`golang-oras` installs /usr/bin/oras).
-          - name: golang-oras
-            version: "{feat.pm_version}"
-            when:
-              os.id: fedora
-      yum:
-        packages:
-          - name: golang-oras
-            version: "{feat.pm_version}"
-            when:
-              os.id: fedora
-      zypper:
-        packages:
-          - name: oras
-            version: "{feat.pm_version}"
-            when:
-              os.id:
-                - opensuse-tumbleweed
-                - opensuse-slowroll
-      brew:
-        packages:
-          - name: oras
-            version: "{feat.pm_version}"
+      packages:
+        # Fedora package name differs (`golang-oras` installs /usr/bin/oras).
+        - name: golang-oras
+          version: "{feat.pm_version}"
+          when: {plat.pm: [dnf, yum], os.id: fedora}
+        # Alpine package name differs (`oras-cli` provides cmd:oras).
+        - name: oras
+          apk: oras-cli
+          version: "{feat.pm_version}"
+          when:
+            - {plat.pm: [apk, brew]}
+            - {plat.pm: apt, os.id: debian}
+            - {plat.pm: apt, os.id: ubuntu, os.version_id: ["25.04", "25.10", "26.04"]}
+            - {plat.pm: zypper, os.id: [opensuse-tumbleweed, opensuse-slowroll]}
       pacman:
         scripts: |-
           logging__error "method=package is unsupported on pacman because ORAS is not available in official Arch repositories."
