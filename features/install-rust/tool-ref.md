@@ -211,7 +211,6 @@ The `rustup-init` executable accepts the following command-line flags:[^rustup-i
 | `-t`, `--target <TARGET>` | Comma-separated list of additional targets to install (e.g., `wasm32-unknown-unknown`) |
 | `--no-update-default-toolchain` | Don't update any existing default toolchain |
 | `--no-modify-path` | Don't modify `PATH` environment variable or shell profile files |
-| `--allow-downgrade` | When installing a channel (e.g., nightly), allows rustup to select an older release if the latest is missing required components |
 
 **Environment variables** affecting `rustup` behavior (can be set before running `rustup-init`):[^rustup-env-vars]
 
@@ -274,7 +273,7 @@ The `~/.cargo/env` file (on Unix) or the PATH modifications made by the installe
 # Bash (user-local, no root required)
 rustup completions bash > ~/.local/share/bash-completion/completions/rustup
 
-# Bash (system-wide)
+# Bash (system-wide, common path for bash-completion package)
 sudo rustup completions bash > /usr/share/bash-completion/completions/rustup
 
 # Bash (macOS/Homebrew)
@@ -302,7 +301,7 @@ The `rustup-init.sh` script automatically removes the temporary directory and do
 ##### Upgrading/Downgrading
 
 - **Upgrading to the latest release**: `rustup update` — updates all installed toolchains to their latest versions and updates `rustup` itself.
-- **Installing additional toolchains**: `rustup toolchain install <toolchain>` (e.g., `rustup toolchain install nightly`).
+- **Installing additional toolchains**: `rustup toolchain install <toolchain>` (e.g., `rustup toolchain install nightly`). When installing nightly with specific components, use `--allow-downgrade` to select an older nightly if the latest is missing required components (e.g., `rustup toolchain install nightly --allow-downgrade --profile minimal --component clippy`).[^rustup-installation]
 - **Changing the default toolchain**: `rustup default <toolchain>` (e.g., `rustup default nightly` or `rustup default 1.85.0`).
 - **Using a specific toolchain per project**: `rustup override set <toolchain>` in a project directory, or use a `rust-toolchain.toml` / `rust-toolchain` file in the project root.
 - **Changing the default install profile**: `rustup set profile <profile>` to change which components are installed by default for new toolchains (e.g., `rustup set profile minimal`).[^rustup-profiles]
@@ -411,12 +410,12 @@ Same as `rustup-init` — requires a C compiler and linker for compiling Rust co
 
 #### Installation Verification
 
-Standalone installers are signed with the Rust GPG signing key. Signatures (`.asc` files) are available alongside the downloads. GPG verification can be done with:
+Standalone installers are signed with the Rust GPG signing key. Signatures (`.asc` files) are available alongside the downloads. GPG verification can be done with:[^forge-standalone-installers]
 ```sh
 gpg --verify rust-1.96.1-x86_64-unknown-linux-gnu.tar.xz.asc
+```
 
 Standalone installers also have `.sha256` checksum files available alongside the downloads (e.g., `rust-1.96.1-x86_64-unknown-linux-gnu.tar.xz.sha256`), which can be used for verification without GPG.[^forge-standalone-installers]
-```
 
 The Rust signing key is available at https://static.rust-lang.org/rust-key.gpg.ascii.
 
@@ -437,7 +436,7 @@ On Unix, the `install.sh` script accepts `--prefix` to customize the installatio
 sudo ./install.sh --prefix=/opt/rust
 ```
 
-The default prefix is `/usr/local`. On Windows, MSI installers prompt for the installation directory. On macOS, PKG installers use the standard `/Library/Developer/CommandLineTools/` path.
+The default prefix is `/usr/local`. On Windows, MSI installers prompt for the installation directory. On macOS, PKG installers install to `/usr/local` (binaries to `/usr/local/bin`, libraries to `/usr/local/lib/rustlib/`).[^forge-standalone-installers]
 
 ##### User Targeting
 
@@ -456,11 +455,27 @@ Standalone installers have minimal configuration options:
 
 #### Post-Installation Steps and Cleanup
 
-Standalone installers place binaries in `/usr/local/bin` by default. Ensure this directory is on `PATH`. No configuration files are automatically created.
+##### PATH Setup
+
+Standalone installers place binaries in `/usr/local/bin` by default (or in the directory specified by `--prefix`). Ensure this directory is on `PATH` for the tools to be accessible.
+
+##### Cleanup
+
+No temporary files are left behind by the standalone installer. The downloaded archive can be deleted after extraction and installation.
 
 #### Changing Versions and Uninstallation
 
-Standalone installers do not support version management. To uninstall, run the uninstall script included in the installed directory or remove the files manually. Different versions cannot easily coexist — `rustup` is recommended for this.
+##### Upgrading/Downgrading
+
+Standalone installers do not support version management. To switch versions, download and install a different version's archive — this will overwrite the previous installation. Different versions cannot easily coexist; `rustup` is recommended for multi-version management.
+
+##### Uninstallation
+
+To uninstall, run the uninstall script included in the installed directory (e.g., `/usr/local/lib/rustlib/uninstall.sh`) or remove the Rust files manually from `/usr/local/lib/rustlib/` and the binaries from `/usr/local/bin/`.[^forge-standalone-installers]
+
+##### Idempotency
+
+Re-running the same standalone installer version overwrites the previous installation with identical files and is effectively a no-op.
 
 #### Notes and Best Practices
 
@@ -539,6 +554,43 @@ The OS package manager itself does not offer Rust-specific configuration options
 - The system package manager version of `rustup` may lag behind the latest release. Consider using the official `rustup-init.sh` script for the most up-to-date version.
 - On Debian-based systems, the `rustup` package installs the `rustup-init` command, which then needs to be run to complete installation. Some distributions (APT on Debian 13+, pacman) provide the `rustup` command with proxies for Rust tools directly.
 - The Homebrew `rustup` formula is keg-only — the `rustup` binary is not linked into `/usr/local/bin` by default. Add `$(brew --prefix rustup)/bin` to `PATH` if needed.
+- On Arch Linux, `rustup self update` will **not** work when installed via `pacman`; the package must be updated by `pacman` itself. This limitation does not affect other `rustup` functionality such as `rustup update` for updating Rust toolchains.[^archlinux-wiki-rust]
+
+#### Post-Installation Steps and Cleanup
+
+##### PATH Setup
+
+For APT and Pacman-managed installations, the `rustup` binary is typically in `/usr/bin` and is on `PATH` automatically. For Homebrew's keg-only formula, the `rustup` binary must be added to `PATH` manually (e.g., `export PATH="$(brew --prefix rustup)/bin:$PATH"`).
+
+After installing the `rustup` package from the OS package manager, users must still run `rustup default stable` (or another toolchain variant) to download and install an actual Rust toolchain. The OS package only provides the `rustup` manager itself.
+
+##### Configuration Files
+
+The OS package manager may install a default `settings.toml` configuration file. Refer to the distribution's documentation for details.
+
+##### Cleanup
+
+OS package manager installations are cleaned up through the package manager itself (e.g., `apt remove rustup`, `pacman -R rustup`, `brew uninstall rustup`).
+
+#### Changing Versions and Uninstallation
+
+##### Upgrading/Downgrading
+
+The `rustup` package itself is upgraded through the OS package manager's normal update process. The installed Rust toolchains (managed by `rustup`) are updated independently via `rustup update`.
+
+On Arch Linux, `rustup self update` is disabled; `rustup` itself must always be updated through `pacman`.[^archlinux-wiki-rust]
+
+##### Uninstallation
+
+To remove the OS package manager installation of `rustup`: use the package manager's remove command (e.g., `apt remove rustup`, `pacman -R rustup`, `brew uninstall rustup`). This removes the `rustup` binary and associated system files but does **not** remove user-local toolchain installations under `~/.rustup/` or `~/.cargo/`. Those must be removed separately if desired.
+
+##### Idempotency
+
+Re-installing the `rustup` package via the OS package manager is idempotent — the package manager detects that the package is already installed at the latest version and does nothing.
+
+#### Details
+
+The OS package manager's `rustup` packages typically install the `rustup-init` binary (or the `rustup` binary itself for newer distributions). On Debian-based systems (Debian 13+, Ubuntu 24.04+), the package installs the `rustup` binary with symlinks for `rustc` and `cargo`. On Arch Linux, the package provides `rustup` with symlinks to common Rust executables in `/usr/bin/`. The Homebrew formula is keg-only, meaning it does not create symlinks in `/usr/local/bin` to avoid conflicts with the Rust toolchain installed via `rustup-init.sh`.
 
 ## Dev Container Setup
 
@@ -641,3 +693,5 @@ When installing the Rust toolchain in a devcontainer environment, the following 
 [^devcontainers-rust-image]: [microsoft/devcontainers-rust — Docker Hub](https://hub.docker.com/r/microsoft/devcontainers-rust). Pre-built Rust devcontainer images on Docker Hub.
 
 [^forge-standalone-installers]: [Rust Forge — Other Installation Methods](https://forge.rust-lang.org/infra/other-installation-methods.html). Official documentation on standalone installers, source code downloads, and GPG signature verification.
+
+[^archlinux-wiki-rust]: [ArchWiki — Rust](https://wiki.archlinux.org/title/Rust). Arch Linux documentation on the `rustup` package, including the note that `rustup self update` does not work when installed via pacman.
