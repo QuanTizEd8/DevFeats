@@ -2,7 +2,7 @@
 
 [OpenCode](https://opencode.ai) is an open-source AI coding agent designed to operate as a terminal-based interface for code generation, explanation, refactoring, and general development assistance. It supports 75+ LLM providers (including Anthropic, OpenAI, Google, OpenRouter, etc.)[^docs-intro] and can be used interactively via its Terminal UI (TUI), non-interactively for automation via its `run` subcommand, as a web application, as an IDE extension (VS Code, Cursor, Zed, Windsurf, VSCodium), or as a GitHub/GitLab agent for repository automation[^docs-github][^docs-gitlab]. OpenCode is a fully open-source project under the MIT license.
 
-OpenCode is written in TypeScript and compiled into self-contained native binaries using Bun's `compile` feature, meaning it requires no runtime dependencies (such as Node.js, Python, or a JVM) to execute. It uses Bun as the primary runtime environment for development, and the pre-built binaries are standalone executables for Linux, macOS, and Windows on both x64 and arm64 architectures[^docs-arch].
+OpenCode is written in TypeScript and compiled into self-contained native binaries using Bun's `compile` feature, meaning it requires no runtime dependencies (such as Node.js, Python, or a JVM) to execute. It uses Bun as the primary runtime environment for development, and the pre-built binaries are standalone executables for Linux, macOS, and Windows on both x64 and arm64 architectures[^src-build].
 
 - **Homepage**: https://opencode.ai
 - **Source Code**: https://github.com/anomalyco/opencode
@@ -11,11 +11,11 @@ OpenCode is written in TypeScript and compiled into self-contained native binari
 
 ## Tool Architecture
 
-OpenCode is a single, self-contained CLI binary that serves as both a client and server for AI-powered coding assistance. Its architecture[^docs-arch] includes:
+OpenCode is a single, self-contained CLI binary that serves as both a client and server for AI-powered coding assistance. Its architecture[^src-build] includes:
 
 - **Primary binary**: A single executable named `opencode` compiled via `bun build --compile`, which includes an embedded server (using the Hono framework), a TUI renderer (using Ink/React-based terminal UI rendering), an SDK client, a tool registry and execution engine, LSP server management (supporting 20+ languages), a session and agent management system, and provider integrations for 75+ LLM services[^src-package-json].
 - **Self-contained**: The compiled binary embeds all dependencies, including a web UI bundle, and requires no external runtime (Node.js, Python, etc.) for normal operation.
-- **Client-server architecture**: The TUI runs as a separate thread (Worker Thread) that communicates with the embedded HTTP server via SSE (Server-Sent Events) and RPC. The server process handles all I/O-intensive work (LLM streaming, file operations, MCP connections), while the TUI thread handles rendering and user input. This separation also allows the CLI to connect to a remote `opencode serve` instance, enabling a "local editing, remote inference" workflow[^docs-tui].
+- **Client-server architecture**: The TUI runs as a separate thread (Worker Thread) that communicates with the embedded HTTP server via SSE (Server-Sent Events) and RPC[^src-run]. The server process handles all I/O-intensive work (LLM streaming, file operations, MCP connections), while the TUI thread handles rendering and user input. This separation also allows the CLI to connect to a remote `opencode serve` instance, enabling a "local editing, remote inference" workflow[^src-run].
 - **No external services required**: OpenCode can be used entirely locally with any configured LLM provider; it does not require a cloud service, although a hosted Zen service is available for curated model access.
 - **Development runtime**: During development, OpenCode uses Bun (v1.3.14+) as its runtime with a TypeScript codebase organized as a Turborepo monorepo[^src-package-json].
 - **Extensible via plugins**: OpenCode supports a plugin system, MCP (Model Context Protocol) servers, ACP (Agent Communication Protocol) support, custom tools, and agent skills[^docs-plugins].
@@ -155,7 +155,7 @@ XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://opencode.ai/install | bash
 
 - `--no-modify-path`: Prevents the script from modifying shell configuration files (`.bashrc`, `.zshrc`, etc.) to add the install directory to PATH[^src-installer]. This is particularly useful in Dev Container or CI environments where PATH is managed externally.
 - `--binary <path>`: Skips download and installs from a pre-downloaded binary at the given path. Useful for air-gapped environments or when the binary is obtained through other means[^src-installer].
-- `GITHUB_ACTIONS=true`: In GitHub Actions environments, the script appends the install directory to `$GITHUB_PATH` to make the binary available in subsequent workflow steps[^src-installer].
+- `GITHUB_ACTIONS=true`: In GitHub Actions environments, the script appends the install directory path to the file referenced by `$GITHUB_PATH` (a file path variable set by GitHub Actions), making the binary available in subsequent workflow steps[^src-installer].
 
 #### Post-Installation Steps and Cleanup
 
@@ -207,7 +207,7 @@ No activation scripts need to be sourced. After PATH is configured, the `opencod
 
 ##### Shell Completions
 
-OpenCode does not ship pre-built shell completion scripts with the binary. Shell completions can be generated manually if needed, but this is not part of the standard installation process.
+OpenCode does not ship pre-built shell completion scripts with the binary[^docs-cli]. Shell completions can be generated manually if needed, but this is not part of the standard installation process.
 
 ##### Cleanup
 
@@ -221,7 +221,7 @@ OpenCode includes a built-in `upgrade` command that handles version changes:
 ```bash
 opencode upgrade
 ```
-This command detects the installation method that was used and dispatches to the appropriate upgrade logic[^src-upgrade]:
+This command detects the installation method that was used and dispatches to the appropriate upgrade logic[^src-installation]:
 - **Install script (`curl`)**: Re-downloads and reinstalls via the install script.
 - **npm/bun/pnpm/yarn**: Runs the appropriate package manager update command (e.g., `npm install -g opencode-ai@latest`).
 - **Homebrew**: Runs the appropriate Homebrew upgrade command.
@@ -598,19 +598,22 @@ OpenCode supports several extension mechanisms:
 [^docs-providers]: [OpenCode Documentation – Providers](https://opencode.ai/docs/providers/) — LLM provider configuration and API key setup.
 [^docs-github]: [OpenCode Documentation – GitHub](https://opencode.ai/docs/github/) — GitHub agent installation and workflow configuration.
 [^docs-gitlab]: [OpenCode Documentation – GitLab](https://opencode.ai/docs/gitlab/) — GitLab integration documentation.
-[^docs-tui]: [OpenCode Documentation – TUI](https://opencode.ai/docs/tui/) — TUI usage, including architecture details about Worker Thread and SSE event streaming.
+[^docs-tui]: [OpenCode Documentation – TUI](https://opencode.ai/docs/tui/) — TUI usage guide covering commands, keybinds, configuration, and customization.
+[^docs-cli]: [OpenCode Documentation – CLI](https://opencode.ai/docs/cli/) — CLI commands reference.
 [^docs-plugins]: [OpenCode Documentation – Plugins](https://opencode.ai/docs/plugins/) — Plugin API and development guide.
 [^docs-mcp]: [OpenCode Documentation – MCP Servers](https://opencode.ai/docs/mcp-servers/) — Model Context Protocol server integration.
 [^docs-acp]: [OpenCode Documentation – ACP Support](https://opencode.ai/docs/acp/) — Agent Communication Protocol support.
 [^docs-skills]: [OpenCode Documentation – Agent Skills](https://opencode.ai/docs/skills/) — Custom agent skills documentation.
 [^docs-custom-tools]: [OpenCode Documentation – Custom Tools](https://opencode.ai/docs/custom-tools/) — Custom tool definition guide.
 [^docs-ide]: [OpenCode Download Page](https://opencode.ai/download/) — IDE extensions for VS Code, Cursor, Zed, Windsurf, and VSCodium.
-[^docs-arch]: [OpenCode Documentation – Config](https://opencode.ai/docs/config/) — Configuration and architecture information. Also see the [GitHub repository](https://github.com/anomalyco/opencode) for source-level architecture documentation.
 [^readme-install]: [GitHub README – Installation](https://github.com/anomalyco/opencode) — README with installation methods, directory selection order, and examples.
 [^src-installer]: [Install Script Source Code (dev branch)](https://raw.githubusercontent.com/anomalyco/opencode/refs/heads/dev/install) — The complete official install script with all logic for platform detection, download, extraction, PATH setup, and shell configuration.
 [^src-package-json]: [Root package.json](https://github.com/anomalyco/opencode/blob/dev/package.json) — Project metadata, workspaces, dependency catalogs, and build configuration.
 [^src-config-ts]: [Config Source Code](https://github.com/anomalyco/opencode/blob/dev/packages/opencode/src/config/config.ts) — Source code showing the `globalConfigFile()` function and config loading logic with `opencode.json` as the primary config file and `config.json` as fallback.
-[^src-upgrade]: [DeepWiki – Installation and Setup](https://deepwiki.com/anomalyco/opencode/1.3-installation-and-setup) — Analysis of the built-in `upgrade` command and `Installation.Service` dispatch logic.
+[^src-installation]: [Installation Service Source Code](https://github.com/anomalyco/opencode/blob/dev/packages/opencode/src/installation/index.ts) — Source code for the `Installation.Service` with the `upgrade()` method that dispatches to method-specific upgrade commands (curl, npm, brew, choco, scoop, etc.).
+[^src-upgrade-cli]: [Upgrade CLI Command Source Code](https://github.com/anomalyco/opencode/blob/dev/packages/opencode/src/cli/upgrade.ts) — Source code for the `opencode upgrade` CLI command.
+[^src-build]: [Build Script Source Code](https://github.com/anomalyco/opencode/blob/dev/packages/opencode/script/build.ts) — Source code for the CLI build script showing the use of `Bun.build` with `compile` option and the full target matrix (12 platform combinations).
+[^src-run]: [CLI Run Command Source Code](https://github.com/anomalyco/opencode/blob/dev/packages/opencode/src/cli/cmd/run.ts) — Source code for the CLI `run` command implementing interactive mode, Worker Thread initialization, and SSE/RPC-based communication between the TUI and the embedded HTTP server.
 [^npm-package]: [npm Registry – opencode-ai](https://registry.npmjs.org/opencode-ai/latest) — npm package metadata with optional platform-specific binary dependencies (12 platform targets).
 [^github-latest-release]: [GitHub Releases – Latest](https://api.github.com/repos/anomalyco/opencode/releases/latest) — Latest release metadata (v1.17.12 as of 2026-06-30).
 [^gh-issue-7675]: [GitHub Issue #7675 – Install script ignores OPENCODE_INSTALL_DIR](https://github.com/anomalyco/opencode/issues/7675) — Confirmed discrepancy between README documentation and actual install script behavior; the script hardcodes `INSTALL_DIR=$HOME/.opencode/bin` and does not respect `$OPENCODE_INSTALL_DIR` or `$XDG_BIN_DIR`.
