@@ -432,6 +432,11 @@ _ctx__populate_plat() {
   if [[ -n "${_v}" ]]; then ctx__set "plat.rust_triple=${_v}"; fi
   _v="$(os__libc 2> /dev/null || true)"
   if [[ -n "${_v}" ]]; then ctx__set "plat.libc=${_v}"; fi
+  if os__has_avx2; then
+    ctx__set "plat.avx2=true"
+  else
+    ctx__set "plat.avx2=false"
+  fi
 }
 
 _ctx__ensure_registry() {

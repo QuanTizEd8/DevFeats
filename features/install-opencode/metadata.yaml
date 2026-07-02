@@ -1,0 +1,104 @@
+version: 0.1.0
+name: OpenCode Installation
+description: Install [OpenCode](https://opencode.ai/) — the AI-powered coding assistant.
+keywords:
+  - opencode
+  - ai
+  - llm
+  - coding-assistant
+  - cli
+_long_description: >-
+  Installs the `opencode` CLI, an AI-powered coding assistant that combines
+  conversational AI with direct file editing, shell command execution,
+  git workflows, and agent capabilities.
+
+
+  Supports five installation methods: a direct binary download from GitHub
+  Releases (self-contained, no system Node.js or package manager required),
+  the official Homebrew tap (up-to-date, macOS/Linux), the standard OS
+  package manager on Arch Linux (pacman) and macOS (Homebrew), npm global
+  installation (requires Node.js 18+), and npm-bundled (self-contained,
+  no system Node.js required). The default auto method selects the best
+  option for the current environment.
+
+  In devcontainers, the OpenCode config and data directories
+  (~/.config/opencode and ~/.local/share/opencode) are symlinked to
+  persistent workspace subdirectories so credentials, settings, and
+  session state survive container rebuilds.
+_tool_name: opencode
+_options:
+  verify:
+    args: "--version"
+    description: Verify OpenCode is installed and working.
+  gh_repo: anomalyco/opencode
+  version:
+    resolution: github_release
+  method:
+    binary:
+      asset_uri: "https://github.com/anomalyco/opencode/releases/download/{feat.tag}/opencode-{plat.kernel:lower}-{plat.machine_release}{plat.avx2==false?-baseline:}{plat.libc==musl?-musl:}{plat.kernel==Darwin?.zip:.tar.gz}"
+      binary_src:
+        - opencode
+      when:
+        - {plat.kernel: [darwin, linux], plat.machine_release: [amd64, arm64]}
+    upstream-package:
+      when: {plat.pm: brew}
+    package:
+      when: {plat.pm: [brew, pacman]}
+    npm:
+      package: opencode-ai
+    npm-bundled:
+      package: opencode-ai
+      cmd: opencode
+  prefix:
+    bins: [opencode]
+    root: /usr/local
+    nonroot: "${HOME}/.local"
+    applies_when:
+      - method: [binary, npm-bundled]
+options:
+  config_dir:
+    type: string
+    default: .opencode
+    description: >-
+      Relative path within the workspace to symlink as `~/.config/opencode`
+      on container creation. OpenCode stores credentials, settings, and
+      configuration under `~/.config/opencode`; symlinking it to a workspace
+      path makes them persist across container rebuilds.
+      Set to an empty string to skip the symlink.
+  data_dir:
+    type: string
+    default: .opencode/sessions
+    description: >-
+      Relative path within the workspace to symlink as `~/.local/share/opencode`
+      on container creation. OpenCode stores session state, conversation
+      transcripts, and auth credentials under `~/.local/share/opencode`;
+      symlinking it to a workspace path makes them persist across container
+      rebuilds.
+      Set to an empty string to skip the symlink.
+onCreateCommand:
+  symlink-config-dir:
+    description: Symlink the configured workspace directory to ~/.config/opencode on container create.
+    args: "${containerWorkspaceFolder}"
+    _conf_vars: [CONFIG_DIR]
+  symlink-data-dir:
+    description: Symlink the configured workspace directory to ~/.local/share/opencode on container create.
+    args: "${containerWorkspaceFolder}"
+    _conf_vars: [DATA_DIR]
+customizations:
+  vscode:
+    extensions:
+      - sst-dev.opencode
+_dependencies:
+  run:
+    method-package:
+      packages:
+        - name: opencode
+          version: "{feat.pm_version}"
+    method-upstream-package:
+      taps:
+        - anomalyco/tap
+      packages:
+        - name: opencode
+          version: "{feat.pm_version}"
+          when:
+            plat.pm: brew

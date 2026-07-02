@@ -245,6 +245,26 @@ os__libc() {
   fi
 }
 
+os__has_avx2() {
+  # @brief os__has_avx2 — Return 0 when the CPU supports AVX2 instructions, 1 otherwise.
+  #
+  # Detection methods:
+  #   Linux:  /proc/cpuinfo flags
+  #   Darwin: sysctl hw.optional.avx2_0
+  #   Other:  always 1 (not supported)
+  #
+  # Returns: 0 if AVX2 is available, 1 otherwise (no output).
+  case "$(os__kernel)" in
+    Linux)
+      grep -q '^flags.*\bavx2\b' /proc/cpuinfo 2> /dev/null && return 0
+      ;;
+    Darwin)
+      sysctl hw.optional.avx2_0 2> /dev/null | grep -q 'hw.optional.avx2_0: 1' && return 0
+      ;;
+  esac
+  return 1
+}
+
 os__rust_triple() {
   # @brief os__rust_triple [<raw-arch>] — Print the Rust target triple for the current kernel and architecture.
   #

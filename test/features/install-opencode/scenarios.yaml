@@ -1,0 +1,83 @@
+defaults:
+  modes: [devcontainer, standalone]
+
+# ── binary method ──────────────────────────────────────────────────────────────
+
+binary_stable:
+  envs: [ubuntu-stable]
+  options:
+    method: binary
+  tests: [binary_stable]
+
+binary_specific_version:
+  envs: [ubuntu-stable]
+  options:
+    method: binary
+    version: "1.17.12"
+  tests: [binary_specific_version]
+
+binary_musl:
+  envs: [alpine-current+bash]
+  options:
+    method: binary
+  tests: [binary_musl]
+
+# ── persist dirs (onCreateCommand symlinks) ─────────────────────────────────────
+
+persist_dirs:
+  envs: [ubuntu-stable]
+  modes: [devcontainer]
+  tests: [persist_dirs]
+
+persist_dirs_custom:
+  envs: [ubuntu-stable]
+  modes: [devcontainer]
+  options:
+    config_dir: .config/opencode
+    data_dir: .local/share/opencode
+  tests: [persist_dirs_custom]
+
+# ── package method ─────────────────────────────────────────────────────────────
+
+package_pacman:
+  envs: [archlinux-current]
+  options:
+    method: package
+  tests: [package_pacman]
+
+# ── if_exists behaviour ────────────────────────────────────────────────────────
+
+if_exists_skip:
+  envs: [ubuntu-stable]
+  modes: [standalone]
+  setup: |
+    mkdir -p /usr/local/bin
+    printf '#!/bin/sh\necho "9.9.9"\n' > /usr/local/bin/opencode
+    chmod +x /usr/local/bin/opencode
+  options:
+    method: binary
+    if_exists: skip
+  tests: [if_exists_skip]
+
+if_exists_fail:
+  expect_install_failure: true
+  envs: [ubuntu-stable]
+  modes: [standalone]
+  setup: |
+    mkdir -p /usr/local/bin
+    printf '#!/bin/sh\necho "9.9.9"\n' > /usr/local/bin/opencode
+    chmod +x /usr/local/bin/opencode
+  options:
+    method: binary
+    if_exists: fail
+  tests: [if_exists_fail]
+
+# ── validation ─────────────────────────────────────────────────────────────────
+
+invalid_method:
+  expect_install_failure: true
+  envs: [ubuntu-stable]
+  modes: [standalone]
+  options:
+    method: invalid
+  tests: [invalid_method]
