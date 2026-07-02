@@ -35,7 +35,7 @@ _options:
         - ruff
       when:
         - {plat.kernel: darwin, plat.machine_release: [amd64, arm64]}
-        - {plat.kernel: linux, plat.machine_release: [amd64, arm64, armv7, i386, s390x]}
+        - {plat.kernel: linux, plat.machine_release: [amd64, arm64, armv7, i386, ppc64le, riscv64, s390x]}
         - {plat.kernel: windows, plat.machine_release: [amd64, arm64, i386]}
     package:
       when:
@@ -63,9 +63,6 @@ customizations:
       - charliermarsh.ruff
 _dependencies:
   run:
-    base:
-      packages:
-        - ca-certificates
     method-package:
       packages:
         - name: ruff
@@ -78,3 +75,10 @@ _dependencies:
           version: "{feat.pm_version}"
           when: ${{ _options.method.upstream-package.when }}$
         - ${{ _internal.epel_rhel_family }}$
+  build:
+    method-cargo:
+      packages:
+        - make
+        - name: gcc
+          apt: build-essential
+          apk: build-base

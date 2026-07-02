@@ -1,5 +1,9 @@
 default:
-  description: Default install on Ubuntu puts a functional ruff on PATH via binary auto-selection.
+  description: |
+    Default install on Ubuntu puts a functional ruff on PATH via binary auto-selection.
+    Also exercises shell_completions=bash (enabled by default in this scenario) and
+    verifies the cargo-dist install receipt is written with a dynamically-fetched
+    provider version.
   checks:
     - title: ruff is on PATH
       cmd: command -v ruff
@@ -14,6 +18,24 @@ default:
       cmd: bash -c 'ruff --version | grep -Eq "^ruff [0-9]+\.[0-9]+\.[0-9]+"'
     - title: ruff check runs on sample file
       cmd: bash -c 'printf "x=1\n" > /tmp/ruff-test.py && RUFF_CACHE_DIR=/tmp/ruff-cache ruff check /tmp/ruff-test.py'
+    - title: bash completion file exists
+      cmd: test -f /etc/bash_completion.d/ruff
+      debug: |
+        echo "=== /etc/bash_completion.d/ruff ==="
+        cat /etc/bash_completion.d/ruff 2> /dev/null | head -5 || echo "(missing)"
+    - title: bash completion file is non-empty
+      cmd: bash -c 'test -s /etc/bash_completion.d/ruff'
+    - title: bash completion file is valid bash
+      cmd: bash -n /etc/bash_completion.d/ruff
+    - title: ruff install receipt exists
+      cmd: test -f "${HOME}/.config/ruff/ruff-receipt.json"
+      debug: |
+        echo "=== ruff-receipt.json ==="
+        cat "${HOME}/.config/ruff/ruff-receipt.json" 2> /dev/null || echo "(missing)"
+    - title: ruff install receipt reports default install_prefix
+      cmd: bash -c 'grep -q "\"install_prefix\":\"/usr/local/bin\"" "${HOME}/.config/ruff/ruff-receipt.json"'
+    - title: ruff install receipt has a dynamically-fetched cargo-dist provider version
+      cmd: bash -c 'grep -Eq "\"provider\":\{\"source\":\"cargo-dist\",\"version\":\"[0-9]+\.[0-9]+\.[0-9]+\"\}" "${HOME}/.config/ruff/ruff-receipt.json"'
 
 binary_pinned_version:
   description: |
@@ -33,6 +55,15 @@ binary_pinned_version:
       cmd: bash -c 'ruff --version 2>/dev/null | grep -q "^ruff 0\.15\.20"'
     - title: ruff check runs on sample file
       cmd: bash -c 'printf "x=1\n" > /tmp/ruff-test.py && RUFF_CACHE_DIR=/tmp/ruff-cache ruff check /tmp/ruff-test.py'
+    - title: ruff install receipt exists
+      cmd: test -f "${HOME}/.config/ruff/ruff-receipt.json"
+    - title: ruff install receipt reports version 0.15.20
+      cmd: bash -c 'grep -q "\"version\":\"0.15.20\"" "${HOME}/.config/ruff/ruff-receipt.json"'
+    - title: ruff install receipt reports the exact cargo-dist version that built this release
+      cmd: bash -c 'grep -q "\"provider\":\{\"source\":\"cargo-dist\",\"version\":\"0.31.0\"\}" "${HOME}/.config/ruff/ruff-receipt.json"'
+      debug: |
+        echo "=== ruff-receipt.json ==="
+        cat "${HOME}/.config/ruff/ruff-receipt.json" 2> /dev/null || echo "(missing)"
 
 binary_custom_prefix:
   description: |
@@ -53,6 +84,8 @@ binary_custom_prefix:
       cmd: command -v ruff
     - title: ruff check runs via PATH
       cmd: bash -c 'printf "x=1\n" > /tmp/ruff-test.py && RUFF_CACHE_DIR=/tmp/ruff-cache ruff check /tmp/ruff-test.py'
+    - title: ruff install receipt reports the custom install_prefix
+      cmd: bash -c 'grep -q "\"install_prefix\":\"/opt/ruff-bin/bin\"" "${HOME}/.config/ruff/ruff-receipt.json"'
 
 package_default:
   description: method=package installs ruff via the OS package manager.
@@ -67,6 +100,8 @@ package_default:
       cmd: bash -c 'ruff --version | grep -Eq "^ruff [0-9]+"'
     - title: ruff check runs on sample file
       cmd: bash -c 'printf "x=1\n" > /tmp/ruff-test.py && RUFF_CACHE_DIR=/tmp/ruff-cache ruff check /tmp/ruff-test.py'
+    - title: ruff install receipt is not written for package installs
+      cmd: bash -c '! test -e "${HOME}/.config/ruff/ruff-receipt.json"'
 
 upstream_package_default:
   description: |
@@ -85,6 +120,50 @@ upstream_package_default:
       cmd: bash -c 'ruff --version | grep -Eq "^ruff [0-9]+"'
     - title: ruff check runs on sample file
       cmd: bash -c 'printf "x=1\n" > /tmp/ruff-test.py && RUFF_CACHE_DIR=/tmp/ruff-cache ruff check /tmp/ruff-test.py'
+    - title: ruff install receipt is not written for upstream-package installs
+      cmd: bash -c '! test -e "${HOME}/.config/ruff/ruff-receipt.json"'
+
+method_cargo:
+  description: |
+    method=cargo on Ubuntu with Rust pre-installed: builds ruff from crates.io via
+    `cargo install --locked ruff` (exercising the make/gcc build dependency required
+    to compile the vendored jemalloc allocator) and verifies the installed binary.
+    The cargo-dist install receipt must NOT be written for this method.
+  checks:
+    - title: ruff binary is at /usr/local/bin/ruff
+      cmd: test -f /usr/local/bin/ruff
+    - title: ruff binary is executable
+      cmd: test -x /usr/local/bin/ruff
+    - title: ruff --version succeeds
+      cmd: ruff --version
+      debug: |
+        echo "=== ruff --version ==="
+        ruff --version 2>&1 || echo "(failed)"
+    - title: ruff reports a semver version
+      cmd: bash -c 'ruff --version | grep -Eq "^ruff [0-9]+\.[0-9]+\.[0-9]+"'
+    - title: ruff check runs on sample file
+      cmd: bash -c 'printf "x=1\n" > /tmp/ruff-test.py && RUFF_CACHE_DIR=/tmp/ruff-cache ruff check /tmp/ruff-test.py'
+    - title: ruff install receipt is not written for cargo installs
+      cmd: bash -c '! test -e "${HOME}/.config/ruff/ruff-receipt.json"'
+
+completions_zsh:
+  description: |
+    shell_completions=zsh (root): Verifies ruff zsh completion file is written to the
+    system-wide zsh completions directory.
+  checks:
+    - title: ruff binary installed
+      cmd: command -v ruff
+    - title: ruff --version succeeds
+      cmd: ruff --version
+    - title: zsh completion file exists in system zsh completions dir
+      cmd: bash -c 'test -f /etc/zsh/completions/_ruff || test -f /usr/share/zsh/completions/_ruff || test -f /etc/completions/_ruff'
+      debug: |
+        echo "=== searching for _ruff completion ==="
+        ls -la /etc/zsh/completions/_ruff 2> /dev/null || echo "(missing /etc/zsh/completions/_ruff)"
+        ls -la /usr/share/zsh/completions/_ruff 2> /dev/null || echo "(missing /usr/share/zsh/completions/_ruff)"
+        ls -la /etc/completions/_ruff 2> /dev/null || echo "(missing /etc/completions/_ruff)"
+    - title: zsh completion file is non-empty
+      cmd: bash -c 'f=""; for p in /etc/zsh/completions/_ruff /usr/share/zsh/completions/_ruff /etc/completions/_ruff; do [ -f "$p" ] && f="$p" && break; done; test -s "$f"'
 
 if_exists_fail:
   description: |

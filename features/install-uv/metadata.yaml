@@ -14,7 +14,7 @@ _long_description: >-
   `uvx`, Python runtime installation, and pip-compatible workflows in a single CLI.
   Downloads pre-built GitHub release artifacts with SHA-256 verification and installs both
   `uv` and `uvx`. Writes a cargo-dist self-update receipt so that `uv self update` works
-  out of the box.
+  out of the box. Cargo-based installation is also available when a Rust toolchain is present.
 _tool_name: uv
 
 _options:
@@ -32,12 +32,18 @@ _options:
       binary_src:
         - uv
         - uvx
+      when:
+        - {plat.kernel: darwin, plat.machine_release: [amd64, arm64]}
+        - {plat.kernel: linux, plat.machine_release: [amd64, arm64, armv7, i386, ppc64le, riscv64, s390x]}
     package:
       when: {plat.pm: [brew, dnf, apk, pacman, zypper]}
+    cargo:
+      crate: uv
+      args: ["--locked"]
   prefix:
     bins: [uv, uvx]
     applies_when:
-      - method: [binary]
+      - method: [binary, cargo]
   completions:
     subcmd: "generate-shell-completion"
     shells: [bash, zsh, fish]
@@ -55,3 +61,10 @@ _dependencies:
       packages:
         - name: uv
           version: "{feat.pm_version}"
+  build:
+    method-cargo:
+      packages:
+        - make
+        - name: gcc
+          apt: build-essential
+          apk: build-base
