@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import re
+import selectors
 import shlex
 import shutil
 import signal
@@ -17,7 +18,7 @@ from concurrent.futures import Future, ThreadPoolExecutor, wait
 from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, BinaryIO
 
 from proman.config import load as load_config
 
@@ -31,7 +32,12 @@ _WORKLOADS = frozenset({"ordinary", "bootstrap", "complete"})
 
 @dataclass(frozen=True)
 class ProfileResult:
-    """Disk-backed result metadata for one concrete platform profile."""
+    """Result metadata for one profile and its test-command output spool.
+
+    ``log_path`` contains the test-command bytes used for replay and summary
+    parsing. In live-stream mode environment-resolution output is deliberately
+    written only to the live console, not duplicated into this spool.
+    """
 
     platform: str
     profile: str
@@ -402,33 +408,99 @@ def _run_streamed(
     cancel_event: threading.Event,
     registry: ProcessRegistry,
 ) -> int:
-    """Run a profile subprocess, teeing its bytes live to stdout and the log.
+    """Run a profile command, streaming its bytes to console and its spool.
 
-    Used for single-platform runs (workers == 1) where there is no interleaving
-    risk, so output appears live instead of being buffered until the end. Bytes
-    are copied verbatim (binary) so non-UTF-8 output cannot break the tee.
-    Cancellation is handled by the registry terminating the process group, which
-    closes the pipe and ends the read loop.
+    This is used only when workers are serial, so the live console cannot
+    interleave profiles. The command spool remains byte-exact. A selector and
+    ``os.read`` make short pipe writes visible immediately instead of waiting
+    for Python's buffered ``read(n)`` to fill. The project only streams these
+    subprocesses on POSIX hosts (Linux/macOS); fail explicitly elsewhere rather
+    than quietly regressing to buffered output.
     """
-    proc = subprocess.Popen(
-        cmd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        start_new_session=os.name == "posix",
-    )
-    registry.add(proc)
+    if os.name != "posix":
+        message = "Live profile streaming requires a POSIX pipe reader."
+        raise RuntimeError(message)
+
+    # Opening before launch means every launched command has an established
+    # spool destination, and an open failure cannot leave a child behind.
+    with log_path.open("ab") as output:
+        proc = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
+        )
+        stdout = proc.stdout
+        if stdout is None:
+            message = "Live profile subprocess did not expose stdout."
+            with suppress(BaseException):
+                _terminate_and_reap_streamed(proc, registry)
+            raise RuntimeError(message)
+        try:
+            registry.add(proc)
+            binary_stdout = getattr(sys.stdout, "buffer", None)
+            with selectors.DefaultSelector() as selector:
+                selector.register(stdout, selectors.EVENT_READ)
+                while True:
+                    if cancel_event.is_set():
+                        _terminate_and_reap_streamed(proc, registry)
+                        return proc.wait()
+                    events = selector.select(timeout=0.05)
+                    if not events:
+                        continue
+                    for key, _mask in events:
+                        chunk = os.read(key.fd, 65536)
+                        if not chunk:
+                            selector.unregister(stdout)
+                            return proc.wait()
+                        _write_stream_chunk(chunk, output, binary_stdout)
+        except BaseException:
+            # Do not abandon a process just because a capture/output/log/wait
+            # operation failed. Preserve the original exception after the group
+            # has been terminated and reaped.
+            with suppress(BaseException):
+                _terminate_and_reap_streamed(proc, registry)
+            raise
+        finally:
+            registry.discard(proc)
+
+
+def _terminate_and_reap_streamed(
+    proc: subprocess.Popen[bytes], registry: ProcessRegistry
+) -> None:
+    """Terminate a streamed process even if the registry's graceful path errors."""
     try:
-        with log_path.open("ab") as output:
-            for chunk in iter(lambda: proc.stdout.read(65536), b""):
-                if cancel_event.is_set():
-                    registry.terminate(proc)
-                    break
-                sys.stdout.buffer.write(chunk)
-                sys.stdout.buffer.flush()
-                output.write(chunk)
-        return proc.wait()
+        registry.terminate(proc)
     finally:
-        registry.discard(proc)
+        if proc.poll() is None:
+            with suppress(ProcessLookupError):
+                os.killpg(proc.pid, signal.SIGKILL)
+            with suppress(subprocess.TimeoutExpired):
+                proc.wait(timeout=1)
+
+
+def _write_stream_chunk(
+    chunk: bytes, output: BinaryIO, binary_stdout: BinaryIO | None
+) -> None:
+    """Write one streamed chunk, treating every short write as an output error."""
+    if binary_stdout is not None:
+        _require_full_stream_write(
+            binary_stdout.write(chunk), len(chunk), "binary stdout"
+        )
+        binary_stdout.flush()
+    else:
+        text = chunk.decode("utf-8", errors="backslashreplace")
+        _require_full_stream_write(sys.stdout.write(text), len(text), "text stdout")
+        sys.stdout.flush()
+    _require_full_stream_write(output.write(chunk), len(chunk), "profile spool")
+    output.flush()
+
+
+def _require_full_stream_write(written: int | None, expected: int, sink: str) -> None:
+    """Reject file-like sinks that silently report a partial write."""
+    if written is not None and written != expected:
+        message = f"Short write to {sink}: wrote {written} of {expected} units."
+        raise OSError(message)
 
 
 def _run_platform(  # noqa: PLR0913
@@ -523,13 +595,16 @@ def _replay_log(log_path: Path) -> None:
 _ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
 # run-unit.sh prints one such line per profile (see its summary printf).
 _SUMMARY_RE = re.compile(
-    r"Summary:\s*(\d+)(?:/\d+)?\s+completed[^,]*,\s*"
-    r"(\d+)\s+passed,\s*(\d+)\s+failed,\s*(\d+)\s+skipped"
+    r"Summary:\s*(?P<completed>\d+)(?:/(?P<planned>\d+))?\s+completed"
+    r"(?:\s+\(planned total unavailable\))?[^,]*,\s*"
+    r"(?P<passed>\d+)\s+passed,\s*(?P<failed>\d+)\s+failed,\s*"
+    r"(?P<skipped>\d+)\s+skipped,\s*(?P<todo>\d+)\s+TODO,\s*"
+    r"(?:(?P<incomplete>\d+)\s+incomplete|incomplete count unavailable)"
 )
 
 
-def _profile_summary(log_path: Path) -> dict[str, int] | None:
-    """Extract completed/passed/failed/skipped counts from a profile's log."""
+def _profile_summary(log_path: Path) -> dict[str, int | None] | None:
+    """Extract every run-unit summary count from a test-command spool."""
     if not log_path.is_file():
         return None
     text = _ANSI_RE.sub(
@@ -541,10 +616,15 @@ def _profile_summary(log_path: Path) -> dict[str, int] | None:
     if match is None:
         return None
     return {
-        "completed": int(match.group(1)),
-        "passed": int(match.group(2)),
-        "failed": int(match.group(3)),
-        "skipped": int(match.group(4)),
+        "completed": int(match["completed"]),
+        "planned": int(match["planned"]) if match["planned"] is not None else None,
+        "passed": int(match["passed"]),
+        "failed": int(match["failed"]),
+        "skipped": int(match["skipped"]),
+        "todo": int(match["todo"]),
+        "incomplete": (
+            int(match["incomplete"]) if match["incomplete"] is not None else None
+        ),
     }
 
 
@@ -563,11 +643,35 @@ def _print_test_total(results: list[ProfileResult]) -> None:
     passed = sum(s["passed"] for s in summaries)
     failed = sum(s["failed"] for s in summaries)
     skipped = sum(s["skipped"] for s in summaries)
+    todo = sum(s["todo"] for s in summaries)
+    planned_values = [s["planned"] for s in summaries]
+    incomplete_values = [s["incomplete"] for s in summaries]
+    planned = (
+        sum(value for value in planned_values if value is not None)
+        if all(value is not None for value in planned_values)
+        else None
+    )
+    incomplete = (
+        sum(value for value in incomplete_values if value is not None)
+        if all(value is not None for value in incomplete_values)
+        else None
+    )
     missing = len(results) - len(summaries)
     note = f"; {missing} profile(s) reported no test summary" if missing else ""
+    completed_text = (
+        f"{completed}/{planned} tests completed"
+        if planned is not None
+        else f"{completed} tests completed (planned total unavailable)"
+    )
+    incomplete_text = (
+        f"{incomplete} incomplete"
+        if incomplete is not None
+        else "incomplete count unavailable"
+    )
     print(
-        f"Total: {completed} tests completed across {len(summaries)} profile(s)"
-        f" — {passed} passed, {failed} failed, {skipped} skipped{note}"
+        f"Total: {completed_text} across {len(summaries)} profile(s)"
+        f" — {passed} passed, {failed} failed, {skipped} skipped, {todo} TODO, "
+        f"{incomplete_text}{note}"
     )
 
 
@@ -653,6 +757,7 @@ def _execute_matrix(
                     result.env_name,
                     130,
                     result.log_path,
+                    streamed=result.streamed,
                 )
                 for result in completed
             ]

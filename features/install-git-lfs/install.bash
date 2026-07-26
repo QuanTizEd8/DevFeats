@@ -853,7 +853,7 @@ __uninstall_finish_post() {
   file__rm -f "${_state_file}" 2> /dev/null || true
   file__rm -f "${_users_file}" 2> /dev/null || true
   file__rm -f "${_installed_method}" 2> /dev/null || true
-  file__rm -d "${_state_dir}" 2> /dev/null || true
-  file__rm -d "${_FEAT_SHARE_DIR_ROOT}" 2> /dev/null || true
-  file__rm -d "${_FEAT_SHARE_DIR_NONROOT}" 2> /dev/null || true
+  file__rmdir "${_state_dir}" 2> /dev/null || true
+  file__rmdir "${_FEAT_SHARE_DIR_ROOT}" 2> /dev/null || true
+  file__rmdir "${_FEAT_SHARE_DIR_NONROOT}" 2> /dev/null || true
 }

@@ -15,12 +15,16 @@ import time
 from contextlib import redirect_stdout
 from pathlib import Path
 from types import SimpleNamespace
+from typing import TYPE_CHECKING
 
 import pytest
 import yaml
 from proman.cli import test_lib_matrix as cli
 from proman.test import lib_matrix as lm
 from proman.test.lib_scenarios import LibScenarioError, load_and_validate, validate
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 REPO_ROOT = Path(__file__).parents[2]
 PLATFORMS = (
@@ -32,6 +36,9 @@ PLATFORMS = (
     "opensuse-leap-current",
     "archlinux-current",
 )
+_PROCESS_TEST_TIMEOUT = 5
+# ProcessRegistry can legitimately spend roughly 1.3 seconds reaping a local
+# process tree; five seconds leaves CI scheduling margin without hiding a hang.
 
 
 def _platforms(count: int = 7) -> dict[str, dict[str, dict[str, object]]]:
@@ -116,6 +123,16 @@ def _assert_process_stopped(pid: int, timeout: float = 3) -> None:
             return
         time.sleep(0.02)
     pytest.fail(f"process {pid} remained live after {timeout}s")
+
+
+def _wait_for(
+    condition: Callable[[], bool], timeout: float = _PROCESS_TEST_TIMEOUT
+) -> None:
+    """Wait for a test synchronization condition with a CI-safe bound."""
+    deadline = time.monotonic() + timeout
+    while not condition() and time.monotonic() < deadline:
+        time.sleep(0.01)
+    assert condition()
 
 
 def test_cli_resolves_github_token_before_running_matrix(
@@ -529,6 +546,7 @@ def test_top_level_interrupt_stops_process_tree_and_cleans_exact_resources(
     runner.write_text(
         "#!/bin/sh\n"
         'printf \'%s\\n\' "$*" >> "$LAUNCHES"\n'
+        "printf 'live ordinary output\\n'\n"
         "sleep 60 &\n"
         'printf \'%s\\n\' "$!" > "$CHILD_PID_PATH"\n'
         'printf ready > "$RUNNER_MARKER"\n'
@@ -569,12 +587,16 @@ def test_top_level_interrupt_stops_process_tree_and_cleans_exact_resources(
 
     monkeypatch.setattr(lm.ProcessRegistry, "add", track_registration)
 
+    launch_timeouts: list[str] = []
+
     def interrupt_after_launch() -> None:
-        deadline = time.monotonic() + 2
+        deadline = time.monotonic() + _PROCESS_TEST_TIMEOUT
         while (
             not marker.exists() or not registered.is_set()
         ) and time.monotonic() < deadline:
             time.sleep(0.01)
+        if not marker.exists() or not registered.is_set():
+            launch_timeouts.append("runner did not reach its synchronization marker")
         os.kill(os.getpid(), signal.SIGINT)
 
     interrupter = threading.Thread(target=interrupt_after_launch)
@@ -583,10 +605,11 @@ def test_top_level_interrupt_stops_process_tree_and_cleans_exact_resources(
     output_buffer = io.StringIO()
     with redirect_stdout(output_buffer):
         assert lm.run(None, "complete", "lean", 1, []) == 130
-    interrupter.join(timeout=1)
+    interrupter.join(timeout=_PROCESS_TEST_TIMEOUT)
     assert not interrupter.is_alive()
+    assert not launch_timeouts
     assert marker.exists()
-    assert time.monotonic() - started < 5
+    assert time.monotonic() - started < _PROCESS_TEST_TIMEOUT
     assert not logs_dir.exists()
     assert len(cleanup_calls) == 2
     assert cleanup_calls[0] == cleanup_calls[1]
@@ -601,6 +624,9 @@ def test_top_level_interrupt_stops_process_tree_and_cleans_exact_resources(
     assert "platform-0/ordinary: CANCELLED (130)" in output
     assert "platform-0/bootstrap: CANCELLED (130)" in output
     assert output.index("platform-0/ordinary:") < output.index("platform-0/bootstrap:")
+    # Interrupt normalization must retain `streamed=True`; otherwise the
+    # ordinary spool is replayed and this live line appears twice.
+    assert output.count("live ordinary output") == 1
     child_pid = int(child_pid_path.read_text(encoding="utf-8"))
     _assert_process_stopped(child_pid)
 
@@ -758,6 +784,214 @@ def test_run_streamed_tees_bytes_to_stdout_and_log(tmp_path: Path) -> None:
     assert log.read_bytes() == b"alpha\nbeta\n"
 
 
+def test_run_streamed_delivers_sparse_bytes_before_child_exit(tmp_path: Path) -> None:
+    """A short progress write is live before a long-lived child exits."""
+    marker = tmp_path / "first-write"
+    log = tmp_path / "sparse.log"
+    event = threading.Event()
+    registry = lm.ProcessRegistry(event)
+    first_visible = threading.Event()
+
+    class _Buffer:
+        def __init__(self) -> None:
+            self.bytes = bytearray()
+
+        def write(self, chunk: bytes) -> int:
+            self.bytes.extend(chunk)
+            if b"first\n" in self.bytes:
+                first_visible.set()
+            return len(chunk)
+
+        def flush(self) -> None:
+            pass
+
+    class _Stdout:
+        def __init__(self) -> None:
+            self.buffer = _Buffer()
+
+    fake = _Stdout()
+    result: list[int] = []
+    worker_errors: list[BaseException] = []
+    command = (
+        f"printf 'first\\n'; : > {shlex.quote(str(marker))}; sleep 60; "
+        "printf 'second\\n'"
+    )
+
+    def run_stream() -> None:
+        try:
+            result.append(lm._run_streamed(["sh", "-c", command], log, event, registry))
+        except BaseException as exc:  # noqa: BLE001 - assert thread failures below
+            worker_errors.append(exc)
+
+    with redirect_stdout(fake):  # type: ignore[type-var]
+        worker = threading.Thread(target=run_stream)
+        worker.start()
+        try:
+            _wait_for(marker.exists)
+            assert first_visible.wait(_PROCESS_TEST_TIMEOUT)
+            assert bytes(fake.buffer.bytes) == b"first\n"
+        finally:
+            event.set()
+            registry.terminate_all()
+            worker.join(_PROCESS_TEST_TIMEOUT)
+
+    assert not worker.is_alive()
+    assert not worker_errors
+    assert result
+    assert result[0] != 0
+    assert log.read_bytes() == b"first\n"
+
+
+def test_run_streamed_uses_backslashreplace_for_text_only_stdout(
+    tmp_path: Path,
+) -> None:
+    """Capture-only text streams receive non-UTF-8 subprocess output safely."""
+    log = tmp_path / "text-sink.log"
+    event = threading.Event()
+    sink = io.StringIO()
+
+    with redirect_stdout(sink):
+        rc = lm._run_streamed(
+            ["sh", "-c", "printf 'pre\\377post\\n'"],
+            log,
+            event,
+            lm.ProcessRegistry(event),
+        )
+
+    assert rc == 0
+    assert sink.getvalue() == "pre\\xffpost\n"
+    assert log.read_bytes() == b"pre\xffpost\n"
+
+
+def test_run_streamed_reaps_process_group_when_stdout_sink_raises(
+    tmp_path: Path,
+) -> None:
+    """A live-output exception reaps both the leader and its descendant."""
+    leader_pid_path = tmp_path / "leader.pid"
+    descendant_pid_path = tmp_path / "descendant.pid"
+    log = tmp_path / "sink-failure.log"
+    event = threading.Event()
+    registry = lm.ProcessRegistry(event)
+
+    class _FailingBuffer:
+        def write(self, _chunk: bytes) -> int:
+            message = "synthetic stdout failure"
+            raise OSError(message)
+
+        def flush(self) -> None:
+            pass
+
+    class _Stdout:
+        buffer = _FailingBuffer()
+
+    command = (
+        f"printf '%s\\n' \"$$\" > {shlex.quote(str(leader_pid_path))}; "
+        "sleep 60 & descendant=$!; "
+        f"printf '%s\\n' \"$descendant\" > {shlex.quote(str(descendant_pid_path))}; "
+        'dd if=/dev/zero bs=65536 count=1 2>/dev/null; wait "$descendant"'
+    )
+    with (
+        pytest.raises(OSError, match="synthetic stdout failure"),
+        redirect_stdout(_Stdout()),
+    ):  # type: ignore[type-var]
+        lm._run_streamed(["sh", "-c", command], log, event, registry)
+
+    _wait_for(lambda: leader_pid_path.exists() and descendant_pid_path.exists())
+    _assert_process_stopped(int(leader_pid_path.read_text(encoding="utf-8")))
+    _assert_process_stopped(int(descendant_pid_path.read_text(encoding="utf-8")))
+    assert not registry._processes
+
+
+def test_run_streamed_rejects_short_console_write(tmp_path: Path) -> None:
+    """A sink that reports truncation cannot make a profile look successful."""
+    log = tmp_path / "short-write.log"
+    event = threading.Event()
+    registry = lm.ProcessRegistry(event)
+
+    class _ShortBuffer:
+        def write(self, _chunk: bytes) -> int:
+            return 0
+
+        def flush(self) -> None:
+            pass
+
+    class _Stdout:
+        buffer = _ShortBuffer()
+
+    with (
+        pytest.raises(OSError, match="Short write to binary stdout"),
+        redirect_stdout(_Stdout()),
+    ):  # type: ignore[type-var]
+        lm._run_streamed(["sh", "-c", "printf x"], log, event, registry)
+
+    assert not registry._processes
+
+
+def test_run_streamed_opens_spool_before_launch(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """An unavailable spool cannot launch an unrecorded subprocess."""
+    event = threading.Event()
+    missing_log = tmp_path / "missing" / "stream.log"
+    monkeypatch.setattr(
+        lm.subprocess,
+        "Popen",
+        lambda *_args, **_kwargs: pytest.fail("Popen ran before the spool opened"),
+    )
+
+    with pytest.raises(FileNotFoundError):
+        lm._run_streamed(
+            ["sh", "-c", "printf should-not-run"],
+            missing_log,
+            event,
+            lm.ProcessRegistry(event),
+        )
+
+
+def test_run_streamed_direct_cancel_stops_idle_child(tmp_path: Path) -> None:
+    """The stream loop polls cancellation even while its child is silent."""
+    marker = tmp_path / "started"
+    pid_path = tmp_path / "child.pid"
+    log = tmp_path / "idle.log"
+    event = threading.Event()
+    registry = lm.ProcessRegistry(event)
+    result: list[int] = []
+    worker_errors: list[BaseException] = []
+
+    class _Stdout:
+        buffer = io.BytesIO()
+
+    command = (
+        f"printf '%s\\n' \"$$\" > {shlex.quote(str(pid_path))}; "
+        f": > {shlex.quote(str(marker))}; sleep 60"
+    )
+
+    def run_stream() -> None:
+        try:
+            result.append(lm._run_streamed(["sh", "-c", command], log, event, registry))
+        except BaseException as exc:  # noqa: BLE001 - assert thread failures below
+            worker_errors.append(exc)
+
+    with redirect_stdout(_Stdout()):  # type: ignore[type-var]
+        worker = threading.Thread(target=run_stream)
+        worker.start()
+        try:
+            _wait_for(marker.exists)
+            event.set()
+            worker.join(_PROCESS_TEST_TIMEOUT)
+            assert not worker.is_alive()
+            assert not worker_errors
+            assert result
+            assert result[0] != 0
+            _assert_process_stopped(int(pid_path.read_text(encoding="utf-8")))
+            assert not registry._processes
+        finally:
+            event.set()
+            if worker.is_alive():
+                registry.terminate_all()
+                worker.join(_PROCESS_TEST_TIMEOUT)
+
+
 def test_single_platform_streams_live_and_skips_buffered_replay(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -798,9 +1032,88 @@ def test_single_platform_streams_live_and_skips_buffered_replay(
     assert "Matrix: 1 passed, 0 failed" in out
     # The rolled-up total reflects the real test count, not the profile count.
     assert (
-        "Total: 5 tests completed across 1 profile(s)"
-        " — 4 passed, 0 failed, 1 skipped" in out
+        "Total: 5/5 tests completed across 1 profile(s)"
+        " — 4 passed, 0 failed, 1 skipped, 0 TODO, 0 incomplete" in out
     )
+
+
+def test_serial_multi_platform_matrix_streams_live_in_selected_order(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """One worker streams each selected platform and does not replay its spool."""
+    profiles = {"ordinary": {"env": "test-env"}}
+    selected = [("first", profiles), ("second", profiles)]
+    observed_stream_modes: list[tuple[str, bool]] = []
+
+    def fake_run_platform(*args: object) -> list[lm.ProfileResult]:
+        platform = args[0]
+        logs_dir = args[8]
+        stream = args[-1]
+        assert isinstance(platform, str)
+        assert isinstance(logs_dir, Path)
+        assert isinstance(stream, bool)
+        observed_stream_modes.append((platform, stream))
+        print(f"LIVE[{platform}]")
+        log = logs_dir / f"{platform}--ordinary.log"
+        log.write_text(f"SPOOL[{platform}]\\n", encoding="utf-8")
+        return [
+            lm.ProfileResult(platform, "ordinary", "test-env", 0, log, streamed=stream)
+        ]
+
+    monkeypatch.setattr(lm, "_run_platform", fake_run_platform)
+    output = io.StringIO()
+    with redirect_stdout(output):
+        assert (
+            lm._execute_matrix(
+                selected, "ordinary", "lean", 1, [], _context(), {}, tmp_path
+            )
+            == 0
+        )
+
+    rendered = output.getvalue()
+    assert observed_stream_modes == [("first", True), ("second", True)]
+    assert rendered.index("LIVE[first]") < rendered.index("LIVE[second]")
+    assert "══ Buffered profile output ══" not in rendered
+    assert "SPOOL[first]" not in rendered
+    assert "SPOOL[second]" not in rendered
+
+
+def test_parallel_multi_platform_matrix_buffers_and_replays_selected_order(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Multiple workers buffer profiles and replay their spools in selected order."""
+    profiles = {"ordinary": {"env": "test-env"}}
+    selected = [("first", profiles), ("second", profiles)]
+    observed_stream_modes: list[tuple[str, bool]] = []
+
+    def fake_run_platform(*args: object) -> list[lm.ProfileResult]:
+        platform = args[0]
+        logs_dir = args[8]
+        stream = args[-1]
+        assert isinstance(platform, str)
+        assert isinstance(logs_dir, Path)
+        assert isinstance(stream, bool)
+        observed_stream_modes.append((platform, stream))
+        log = logs_dir / f"{platform}--ordinary.log"
+        log.write_text(f"REPLAY[{platform}]\\n", encoding="utf-8")
+        return [
+            lm.ProfileResult(platform, "ordinary", "test-env", 0, log, streamed=stream)
+        ]
+
+    monkeypatch.setattr(lm, "_run_platform", fake_run_platform)
+    output = io.StringIO()
+    with redirect_stdout(output):
+        assert (
+            lm._execute_matrix(
+                selected, "ordinary", "lean", 2, [], _context(), {}, tmp_path
+            )
+            == 0
+        )
+
+    rendered = output.getvalue()
+    assert sorted(observed_stream_modes) == [("first", False), ("second", False)]
+    assert "══ Buffered profile output ══" in rendered
+    assert rendered.index("REPLAY[first]") < rendered.index("REPLAY[second]")
 
 
 def test_rolled_up_total_sums_profiles_and_notes_missing_summaries(
@@ -829,9 +1142,69 @@ def test_rolled_up_total_sums_profiles_and_notes_missing_summaries(
         lm._print_test_total(results)
     out = buf.getvalue()
 
-    assert "Total: 1787 tests completed across 2 profile(s)" in out
-    assert "1756 passed, 0 failed, 31 skipped" in out
+    assert "Total: 1787/1787 tests completed across 2 profile(s)" in out
+    assert "1756 passed, 0 failed, 31 skipped, 0 TODO, 0 incomplete" in out
     assert "1 profile(s) reported no test summary" in out
+
+
+@pytest.mark.parametrize(
+    ("summary", "expected"),
+    [
+        pytest.param(
+            "── Summary: 3/5 completed, 1 passed, 0 failed, 1 skipped, "
+            "1 TODO, 2 incomplete ──\n",
+            {
+                "completed": 3,
+                "planned": 5,
+                "passed": 1,
+                "failed": 0,
+                "skipped": 1,
+                "todo": 1,
+                "incomplete": 2,
+            },
+            id="planned",
+        ),
+        pytest.param(
+            "── Summary: 3 completed (planned total unavailable), 1 passed, "
+            "0 failed, 1 skipped, 1 TODO, incomplete count unavailable ──\n",
+            {
+                "completed": 3,
+                "planned": None,
+                "passed": 1,
+                "failed": 0,
+                "skipped": 1,
+                "todo": 1,
+                "incomplete": None,
+            },
+            id="unknown-plan",
+        ),
+    ],
+)
+def test_profile_summary_preserves_full_and_unknown_shapes(
+    tmp_path: Path, summary: str, expected: dict[str, int | None]
+) -> None:
+    """The aggregate parser retains every category emitted by run-unit."""
+    path = tmp_path / "summary.log"
+    path.write_text(summary, encoding="utf-8")
+    assert lm._profile_summary(path) == expected
+
+
+def test_rolled_up_total_reports_todo_and_unknown_plan_context(tmp_path: Path) -> None:
+    """The final total honestly retains non-pass categories and unknown fields."""
+    path = tmp_path / "summary.log"
+    path.write_text(
+        "── Summary: 3 completed (planned total unavailable), 1 passed, "
+        "0 failed, 1 skipped, 1 TODO, incomplete count unavailable ──\n",
+        encoding="utf-8",
+    )
+    out = io.StringIO()
+    with redirect_stdout(out):
+        lm._print_test_total([lm.ProfileResult("p", "ordinary", "e", 0, path)])
+    assert (
+        out.getvalue()
+        == "Total: 3 tests completed (planned total unavailable) across 1 profile(s)"
+        " — 1 passed, 0 failed, 1 skipped, 1 TODO, incomplete count unavailable\n"
+    )
 
 
 def test_resolution_does_not_swallow_keyboard_interrupt(
@@ -1001,47 +1374,64 @@ def test_profile_cancellation_terminates_child_process_group(
     )
     runner.chmod(0o755)
     monkeypatch.setenv("PID_FILE", str(grandchild_pid))
+    # Docker cleanup is covered by the wrapper test above; it is unrelated to
+    # proving this local process group is terminated and made this timing test
+    # depend on a real daemon's one-second cleanup timeout.
+    monkeypatch.setattr(
+        lm.ProcessRegistry,
+        "_remove_containers",
+        staticmethod(lambda _names: None),
+    )
     event = threading.Event()
     registry = lm.ProcessRegistry(event)
     result: list[lm.ProfileResult] = []
+    worker_errors: list[BaseException] = []
 
     def invoke() -> None:
-        result.append(
-            lm._run_profile(
-                "platform",
-                "ordinary",
-                {
-                    "env": "prepared",
-                    "env_vars": {
-                        "DEVFEATS_TEST_TOOL_CACHE": "required",
-                        "DEVFEATS_TEST_TOOL_SOURCE_DIR": (
-                            "/opt/devfeats/lib-test-tools/bin"
-                        ),
+        try:
+            result.append(
+                lm._run_profile(
+                    "platform",
+                    "ordinary",
+                    {
+                        "env": "prepared",
+                        "env_vars": {
+                            "DEVFEATS_TEST_TOOL_CACHE": "required",
+                            "DEVFEATS_TEST_TOOL_SOURCE_DIR": (
+                                "/opt/devfeats/lib-test-tools/bin"
+                            ),
+                        },
                     },
-                },
-                "lean",
-                "image",
-                [],
-                "token",
-                lm.RunnerContext(str(tmp_path), str(runner), None, None),
-                tmp_path / "cancel.log",
-                event,
-                registry,
-                stream=False,
+                    "lean",
+                    "image",
+                    [],
+                    "token",
+                    lm.RunnerContext(str(tmp_path), str(runner), None, None),
+                    tmp_path / "cancel.log",
+                    event,
+                    registry,
+                    stream=False,
+                )
             )
-        )
+        except BaseException as exc:  # noqa: BLE001 - assert thread failures below
+            worker_errors.append(exc)
 
     thread = threading.Thread(target=invoke)
     thread.start()
-    deadline = time.monotonic() + 2
-    while not grandchild_pid.exists() and time.monotonic() < deadline:
-        time.sleep(0.01)
-    assert grandchild_pid.exists()
-    pid = int(grandchild_pid.read_text(encoding="utf-8"))
-    started = time.monotonic()
-    event.set()
-    registry.terminate_all()
-    thread.join(timeout=2)
+    try:
+        _wait_for(grandchild_pid.exists)
+        pid = int(grandchild_pid.read_text(encoding="utf-8"))
+        started = time.monotonic()
+        event.set()
+    finally:
+        event.set()
+        registry.terminate_all()
+        thread.join(_PROCESS_TEST_TIMEOUT)
+
     assert not thread.is_alive()
-    assert time.monotonic() - started < 2
+    assert not worker_errors
+    # Local cleanup has a one-second graceful wait, a 0.2-second reap, and a
+    # 0.1-second retry gap. Five seconds leaves CI scheduling margin without
+    # masking a genuinely stuck process group.
+    assert time.monotonic() - started < _PROCESS_TEST_TIMEOUT
     _assert_process_stopped(pid)

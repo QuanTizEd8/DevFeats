@@ -704,11 +704,11 @@ __cleanup_install_artifacts__() {
   fi
   if [[ -d "${_FEAT_SHARE_DIR_ROOT:-}" ]]; then
     logging__remove "Removing share directory '${_FEAT_SHARE_DIR_ROOT}'."
-    file__rm -d "${_FEAT_SHARE_DIR_ROOT}" 2>/dev/null || true
+    file__rmdir "${_FEAT_SHARE_DIR_ROOT}" 2>/dev/null || true
   fi
   if [[ -d "${_FEAT_SHARE_DIR_NONROOT:-}" ]]; then
     logging__remove "Removing share directory '${_FEAT_SHARE_DIR_NONROOT}'."
-    file__rm -d "${_FEAT_SHARE_DIR_NONROOT}" 2>/dev/null || true
+    file__rmdir "${_FEAT_SHARE_DIR_NONROOT}" 2>/dev/null || true
   fi
   # 6. Feature-specific post-cleanup hook.
   __run_feature_hook__ __uninstall_finish_post
